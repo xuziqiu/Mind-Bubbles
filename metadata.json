@@ -1,0 +1,5 @@
+{
+  "name": "思绪气泡 - MindBubbles",
+  "description": "极简交互脑图。左键选择/移动/编辑，右键拖拽创建/关联，顶部拖拽删除。",
+  "requestFramePermissions": []
+}
