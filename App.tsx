@@ -38,8 +38,197 @@ import {
   Keyboard,
   Palette,
   Type,
-  Maximize
+  Maximize,
+  Languages
 } from 'lucide-react';
+
+// --- TRANSLATIONS ---
+const TRANSLATIONS = {
+  zh: {
+    appTitle: "思 绪 气 泡",
+    defaultNode: "想法",
+    magnetNode: "磁铁",
+    tips: {
+      drag: "左键 · 拖拽选中",
+      rightClick: "右键 · 连线创建",
+      pan: "中键 · 平移画布",
+      paste: "提示：Ctrl+V 可直接粘贴图片"
+    },
+    toolbar: {
+      undo: "撤销 (Ctrl+Z)",
+      redo: "重做 (Ctrl+Y)",
+      shapeCircle: "当前：圆形",
+      shapeRect: "当前：矩形",
+      magnetActive: "定位并吸引想法",
+      magnetInactive: "在中心生成磁铁",
+      frozen: "已冻结",
+      floating: "已悬浮",
+      physics: "物理参数设置",
+      fitView: "适应画布",
+      zenMode: "禅模式 (隐藏界面)",
+      io: "导出/导入 Mermaid 代码",
+      muted: "已静音",
+      soundOn: "开启音效",
+      help: "操作说明",
+      exitZen: "退出禅模式",
+      lang: "切换语言"
+    },
+    physics: {
+      title: "物理参数",
+      repulsion: "排斥力",
+      length: "连线长度",
+      stiffness: "弹性刚度",
+      gravity: "向心力 (Gravity)",
+      friction: "阻尼 (Friction)"
+    },
+    io: {
+      export: "导出 Mermaid",
+      import: "导入 Mermaid",
+      exportImg: "导出为图片 (PNG)",
+      placeholderExport: "",
+      placeholderImport: "粘贴 Mermaid 流程图代码...\n例如：\nA[想法] --> B((灵感))",
+      copy: "复制",
+      importBtn: "导入并生成脑图",
+      importHint: "复制上方代码，可在 Notion 或 GitHub 中直接展示流程图。",
+      error: "未能识别有效的 Mermaid 代码。"
+    },
+    context: {
+      color: "颜色",
+      defaultWhite: "默认白",
+      toggleShape: "切换形状",
+      pin: "固定位置",
+      unpin: "解除固定",
+      unlink: "断开连接",
+      delete: "删除气泡"
+    },
+    canvas: {
+      create: "创建气泡",
+      link: "建立连接",
+      unlink: "断开连接",
+      split: "插入连线",
+      merge: "拉紧融合",
+      deleteZone: "释放删除"
+    },
+    help: {
+      title: "操作指南",
+      basic: "基础交互",
+      drag: "左键拖拽",
+      dragDesc: "移动气泡位置，或框选多个气泡",
+      create: "双击空白处",
+      createDesc: "在当前位置快速创建新气泡",
+      right: "右键操作",
+      rightDesc: "点击气泡唤出菜单，拖拽气泡创建连线",
+      edit: "双击连线",
+      editDesc: "为连线添加关系说明",
+      advanced: "进阶技巧",
+      paste: "粘贴图片",
+      pasteDesc: "Ctrl+V 直接将剪贴板图片贴为气泡",
+      merge: "拉紧融合",
+      mergeDesc: "按住连线向中间拖拽，可合并两个想法",
+      trash: "拖入右下角",
+      trashDesc: "将气泡拖入右下角红区可快速删除",
+      magnet: "磁铁模式",
+      magnetDesc: "点击磁铁图标，一键吸附整理所有游离想法",
+      shortcuts: "快捷键",
+      undoKey: "撤销",
+      redoKey: "重做",
+      confirmKey: "确认编辑",
+      newlineKey: "换行"
+    }
+  },
+  en: {
+    appTitle: "M I N D  B U B B L E S",
+    defaultNode: "Idea",
+    magnetNode: "MAGNET",
+    tips: {
+      drag: "L-Click · Drag Select",
+      rightClick: "R-Click · Link / Menu",
+      pan: "M-Click · Pan View",
+      paste: "Tip: Ctrl+V to paste images"
+    },
+    toolbar: {
+      undo: "Undo (Ctrl+Z)",
+      redo: "Redo (Ctrl+Y)",
+      shapeCircle: "Shape: Circle",
+      shapeRect: "Shape: Rectangle",
+      magnetActive: "Locate & Attract",
+      magnetInactive: "Spawn Magnet",
+      frozen: "Frozen",
+      floating: "Floating",
+      physics: "Physics Settings",
+      fitView: "Fit View",
+      zenMode: "Zen Mode (Hide UI)",
+      io: "Import / Export",
+      muted: "Muted",
+      soundOn: "Sound On",
+      help: "Guide",
+      exitZen: "Exit Zen Mode",
+      lang: "Switch Language"
+    },
+    physics: {
+      title: "Physics",
+      repulsion: "Repulsion",
+      length: "Edge Length",
+      stiffness: "Stiffness",
+      gravity: "Gravity",
+      friction: "Friction"
+    },
+    io: {
+      export: "Export Mermaid",
+      import: "Import Mermaid",
+      exportImg: "Export Image (PNG)",
+      placeholderExport: "",
+      placeholderImport: "Paste Mermaid code...\ne.g.,\nA[Idea] --> B((Spark))",
+      copy: "Copy",
+      importBtn: "Import & Generate",
+      importHint: "Copy code above for Notion or GitHub.",
+      error: "Invalid Mermaid code."
+    },
+    context: {
+      color: "Color",
+      defaultWhite: "White",
+      toggleShape: "Toggle Shape",
+      pin: "Pin Position",
+      unpin: "Unpin",
+      unlink: "Unlink",
+      delete: "Delete Node"
+    },
+    canvas: {
+      create: "Create Bubble",
+      link: "Connect",
+      unlink: "Disconnect",
+      split: "Split Edge",
+      merge: "Merge",
+      deleteZone: "Drop to Delete"
+    },
+    help: {
+      title: "User Guide",
+      basic: "Basic",
+      drag: "L-Click Drag",
+      dragDesc: "Move nodes or box select.",
+      create: "Double Click",
+      createDesc: "Create a new bubble at cursor.",
+      right: "Right Click",
+      rightDesc: "Menu on node, or drag to link.",
+      edit: "Double Click Edge",
+      editDesc: "Add label to connection.",
+      advanced: "Advanced",
+      paste: "Paste Image",
+      pasteDesc: "Ctrl+V to paste image as bubble.",
+      merge: "Tension Merge",
+      mergeDesc: "Drag edge tight to merge nodes.",
+      trash: "Corner Trash",
+      trashDesc: "Drag node to bottom-right to delete.",
+      magnet: "Magnet Mode",
+      magnetDesc: "Click magnet to organize clutter.",
+      shortcuts: "Shortcuts",
+      undoKey: "Undo",
+      redoKey: "Redo",
+      confirmKey: "Confirm",
+      newlineKey: "New Line"
+    }
+  }
+};
 
 // --- AUDIO SYSTEM (Web Audio API) ---
 // Purely synthetic sounds, no assets required.
@@ -183,6 +372,7 @@ interface HistoryState {
 }
 
 const STORAGE_KEY = 'mindbubbles_data_v1';
+const LANG_KEY = 'mindbubbles_lang';
 
 const App: React.FC = () => {
   // --- Core Data (React State - Structural Truth) ---
@@ -207,6 +397,11 @@ const App: React.FC = () => {
   const [isMuted, setIsMuted] = useState(false);
   const [isZenMode, setIsZenMode] = useState(false);
   const [helpModalOpen, setHelpModalOpen] = useState(false);
+  const [lang, setLang] = useState<'zh' | 'en'>(() => {
+      return (localStorage.getItem(LANG_KEY) as 'zh' | 'en') || 'zh';
+  });
+
+  const t = TRANSLATIONS[lang];
 
   // --- Selection & Edit State ---
   const [selectedNodeIds, setSelectedNodeIds] = useState<Set<string>>(new Set());
@@ -431,6 +626,10 @@ const App: React.FC = () => {
 
   // --- Load / Save ---
   useEffect(() => {
+    localStorage.setItem(LANG_KEY, lang);
+  }, [lang]);
+
+  useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       try {
@@ -640,8 +839,8 @@ const App: React.FC = () => {
                   else { newDims.rectWidth *= 1.1; newDims.rectHeight *= 1.1; }
                   
                   let newText = n.text;
-                  // SIMPLIFIED MERGE LOGIC: Always merge text unless it's the placeholder "想法"
-                  if (absorbed.text !== '想法') {
+                  // SIMPLIFIED MERGE LOGIC: Always merge text unless it's the placeholder "想法" or "Idea"
+                  if (absorbed.text !== '想法' && absorbed.text !== 'Idea') {
                       newText = n.text + '\n' + absorbed.text;
                   }
                   
@@ -1126,7 +1325,7 @@ const App: React.FC = () => {
       });
 
       if (newNodes.length > 0) { setNodes(newNodes); setEdges(newEdges); setIoModalOpen(false); }
-      else alert('未能识别有效的 Mermaid 代码。');
+      else alert(t.io.error);
   };
 
   const deleteNodes = (idsToDelete: Set<string>) => {
@@ -1199,7 +1398,7 @@ const App: React.FC = () => {
         if (splitEdge) {
             const newNodeId = Math.random().toString(36).slice(2);
             const newNode: GraphNode = {
-                id: newNodeId, text: '想法', x: mouseCanvasX, y: mouseCanvasY,
+                id: newNodeId, text: t.defaultNode, x: mouseCanvasX, y: mouseCanvasY,
                 color: COLORS[0], shape: defaultShape, dimensions: { ...DEFAULT_DIMENSIONS }, vx: 0, vy: 0
             };
             triggerEffect(mouseCanvasX, mouseCanvasY, 'create');
@@ -1221,7 +1420,7 @@ const App: React.FC = () => {
       playSound('pop', isMuted);
       const newNodeId = Math.random().toString(36).slice(2);
       const newNode: GraphNode = {
-        id: newNodeId, text: '想法', x: mouseCanvasX, y: mouseCanvasY,
+        id: newNodeId, text: t.defaultNode, x: mouseCanvasX, y: mouseCanvasY,
         color: COLORS[0], shape: defaultShape, dimensions: { ...DEFAULT_DIMENSIONS }, vx: 0, vy: 0
       };
       triggerEffect(mouseCanvasX, mouseCanvasY, 'create');
@@ -1239,7 +1438,7 @@ const App: React.FC = () => {
     playSound('pop', isMuted);
     const magnetId = 'magnet-' + Math.random().toString(36).slice(2);
     const magnetNode: GraphNode = {
-      id: magnetId, text: 'MAGNET', type: 'magnet', x, y, color: '#d97706', shape: 'circle',
+      id: magnetId, text: t.magnetNode, type: 'magnet', x, y, color: '#d97706', shape: 'circle',
       dimensions: { circleRadius: 60, rectWidth: 180, rectHeight: 120 }, vx: 0, vy: 0
     };
     triggerEffect(x, y, 'create');
@@ -1372,7 +1571,7 @@ const App: React.FC = () => {
         saveHistory();
         const newNodeId = Math.random().toString(36).slice(2);
         const newNode: GraphNode = {
-          id: newNodeId, text: '想法', x: x, y: y, color: COLORS[0], // Use theme green
+          id: newNodeId, text: t.defaultNode, x: x, y: y, color: COLORS[0], // Use theme green
           shape: defaultShape, dimensions: { ...DEFAULT_DIMENSIONS }, vx: 0, vy: 0
         };
         playSound('pop', isMuted);
@@ -1488,7 +1687,7 @@ const App: React.FC = () => {
         dragRef.current.targetEdgeId = clickedEdge.id;
         dragRef.current.tightenStartTime = Date.now();
         dragRef.current.tightenStartPos = { x: x, y: y }; // Store where we clicked in canvas space
-        setTooltipContent({ text: '拉紧融合', type: 'merge' });
+        setTooltipContent({ text: t.canvas.merge, type: 'merge' });
         // Set initial pos for ref
         if (tooltipRef.current) {
             tooltipRef.current.style.transform = `translate(${e.clientX + 15}px, ${e.clientY + 15}px)`;
@@ -1606,14 +1805,14 @@ const App: React.FC = () => {
         const edge = getEdgeAt(cx, cy);
         if (hoveredEdgeId !== (edge?.id || null)) setHoveredEdgeId(edge?.id || null);
 
-        let text = '创建气泡';
+        let text = t.canvas.create;
         let type: 'create' | 'link' | 'unlink' | 'split' = 'create';
         if (hovered) {
           const action = checkLinkAction(dragRef.current.linkSources, hovered.id);
-          text = action === 'unlink' ? '断开连接' : '建立连接';
+          text = action === 'unlink' ? t.canvas.unlink : t.canvas.link;
           type = action === 'unlink' ? 'unlink' : 'link';
         } else if (edge) {
-            text = '插入连线';
+            text = t.canvas.split;
             type = 'split';
         }
         
@@ -1714,7 +1913,7 @@ const App: React.FC = () => {
           saveHistory();
           const newNodeId = Math.random().toString(36).slice(2);
           const newNode: GraphNode = {
-            id: newNodeId, text: '想法', x: cx, y: cy, color: COLORS[0],
+            id: newNodeId, text: t.defaultNode, x: cx, y: cy, color: COLORS[0],
             shape: defaultShape, dimensions: { ...DEFAULT_DIMENSIONS }, vx: 0, vy: 0
           };
           playSound('pop', isMuted);
@@ -2097,29 +2296,29 @@ const App: React.FC = () => {
             className={`fixed top-[25%] left-1/2 -translate-x-1/2 pointer-events-none z-0 transition-opacity duration-1000 ease-out flex flex-col items-center ${nodes.length >= 2 ? 'opacity-0' : 'opacity-100'}`}
           >
              {/* Title: Huge, Thin, Subtle, Wide Spacing */}
-            <h1 className="text-8xl font-light text-slate-200 tracking-[0.5em] mb-16 select-none" style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-                思 绪 气 泡
+            <h1 className="text-8xl font-light text-slate-200 tracking-[0.5em] mb-16 select-none whitespace-nowrap" style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+                {t.appTitle}
             </h1>
             
             {/* Guide: Minimalist Row with Thin Dividers */}
-            <div className="flex items-center gap-12 text-slate-300 font-light text-lg tracking-widest">
+            <div className="flex items-center gap-12 text-slate-300 font-light text-lg tracking-widest whitespace-nowrap">
                 <div className="flex flex-col items-center gap-2 group">
                     <MousePointer2 strokeWidth={1} size={32} className="text-slate-400 group-hover:text-teal-400 transition-colors duration-500" />
-                    <span className="text-xs uppercase text-slate-400">左键 · 拖拽选中</span>
+                    <span className="text-xs uppercase text-slate-400">{t.tips.drag}</span>
                 </div>
                 
                 <div className="h-12 w-px bg-slate-200/50" />
                 
                 <div className="flex flex-col items-center gap-2 group">
                     <Move strokeWidth={1} size={32} className="text-slate-400 group-hover:text-teal-400 transition-colors duration-500" />
-                    <span className="text-xs uppercase text-slate-400">右键 · 连线创建</span>
+                    <span className="text-xs uppercase text-slate-400">{t.tips.rightClick}</span>
                 </div>
                 
                 <div className="h-12 w-px bg-slate-200/50" />
                 
                 <div className="flex flex-col items-center gap-2 group">
                     <Mouse strokeWidth={1} size={32} className="text-slate-400 group-hover:text-teal-400 transition-colors duration-500" />
-                    <span className="text-xs uppercase text-slate-400">中键 · 平移画布</span>
+                    <span className="text-xs uppercase text-slate-400">{t.tips.pan}</span>
                 </div>
             </div>
           </div>
@@ -2129,15 +2328,15 @@ const App: React.FC = () => {
       {!isZenMode && showPhysicsSettings && (
         <div className="physics-panel fixed top-6 right-6 w-64 bg-white/90 backdrop-blur shadow-xl border border-slate-200 rounded-xl p-4 animate-in z-50">
           <div className="flex items-center justify-between mb-4">
-             <h3 className="text-sm font-bold text-slate-700 flex items-center gap-2"><Wind size={16} className="text-teal-500"/> 物理参数</h3>
+             <h3 className="text-sm font-bold text-slate-700 flex items-center gap-2"><Wind size={16} className="text-teal-500"/> {t.physics.title}</h3>
              <button onClick={() => setShowPhysicsSettings(false)} className="text-slate-400 hover:text-slate-600"><X size={16}/></button>
           </div>
           <div className="space-y-4">
-             <div className="space-y-1"><div className="flex justify-between text-xs text-slate-500"><span>排斥力</span><span>{physicsParams.repulsion}</span></div><input type="range" min="0" max="100" value={physicsParams.repulsion} onChange={(e) => setPhysicsParams(p => ({...p, repulsion: Number(e.target.value)}))} className="w-full accent-teal-500 h-1 bg-slate-100 rounded-lg appearance-none cursor-pointer"/></div>
-             <div className="space-y-1"><div className="flex justify-between text-xs text-slate-500"><span>连线长度</span><span>{physicsParams.length}</span></div><input type="range" min="0" max="100" value={physicsParams.length} onChange={(e) => setPhysicsParams(p => ({...p, length: Number(e.target.value)}))} className="w-full accent-teal-500 h-1 bg-slate-100 rounded-lg appearance-none cursor-pointer"/></div>
-             <div className="space-y-1"><div className="flex justify-between text-xs text-slate-500"><span>弹性刚度</span><span>{physicsParams.stiffness}</span></div><input type="range" min="0" max="100" value={physicsParams.stiffness} onChange={(e) => setPhysicsParams(p => ({...p, stiffness: Number(e.target.value)}))} className="w-full accent-teal-500 h-1 bg-slate-100 rounded-lg appearance-none cursor-pointer"/></div>
-             <div className="space-y-1"><div className="flex justify-between text-xs text-slate-500"><span>向心力 (Gravity)</span><span>{physicsParams.gravity}</span></div><input type="range" min="0" max="100" value={physicsParams.gravity} onChange={(e) => setPhysicsParams(p => ({...p, gravity: Number(e.target.value)}))} className="w-full accent-teal-500 h-1 bg-slate-100 rounded-lg appearance-none cursor-pointer"/></div>
-             <div className="space-y-1"><div className="flex justify-between text-xs text-slate-500"><span>阻尼 (Friction)</span><span>{physicsParams.friction}</span></div><input type="range" min="0" max="100" value={physicsParams.friction} onChange={(e) => setPhysicsParams(p => ({...p, friction: Number(e.target.value)}))} className="w-full accent-teal-500 h-1 bg-slate-100 rounded-lg appearance-none cursor-pointer"/></div>
+             <div className="space-y-1"><div className="flex justify-between text-xs text-slate-500"><span>{t.physics.repulsion}</span><span>{physicsParams.repulsion}</span></div><input type="range" min="0" max="100" value={physicsParams.repulsion} onChange={(e) => setPhysicsParams(p => ({...p, repulsion: Number(e.target.value)}))} className="w-full accent-teal-500 h-1 bg-slate-100 rounded-lg appearance-none cursor-pointer"/></div>
+             <div className="space-y-1"><div className="flex justify-between text-xs text-slate-500"><span>{t.physics.length}</span><span>{physicsParams.length}</span></div><input type="range" min="0" max="100" value={physicsParams.length} onChange={(e) => setPhysicsParams(p => ({...p, length: Number(e.target.value)}))} className="w-full accent-teal-500 h-1 bg-slate-100 rounded-lg appearance-none cursor-pointer"/></div>
+             <div className="space-y-1"><div className="flex justify-between text-xs text-slate-500"><span>{t.physics.stiffness}</span><span>{physicsParams.stiffness}</span></div><input type="range" min="0" max="100" value={physicsParams.stiffness} onChange={(e) => setPhysicsParams(p => ({...p, stiffness: Number(e.target.value)}))} className="w-full accent-teal-500 h-1 bg-slate-100 rounded-lg appearance-none cursor-pointer"/></div>
+             <div className="space-y-1"><div className="flex justify-between text-xs text-slate-500"><span>{t.physics.gravity}</span><span>{physicsParams.gravity}</span></div><input type="range" min="0" max="100" value={physicsParams.gravity} onChange={(e) => setPhysicsParams(p => ({...p, gravity: Number(e.target.value)}))} className="w-full accent-teal-500 h-1 bg-slate-100 rounded-lg appearance-none cursor-pointer"/></div>
+             <div className="space-y-1"><div className="flex justify-between text-xs text-slate-500"><span>{t.physics.friction}</span><span>{physicsParams.friction}</span></div><input type="range" min="0" max="100" value={physicsParams.friction} onChange={(e) => setPhysicsParams(p => ({...p, friction: Number(e.target.value)}))} className="w-full accent-teal-500 h-1 bg-slate-100 rounded-lg appearance-none cursor-pointer"/></div>
           </div>
         </div>
       )}
@@ -2150,40 +2349,40 @@ const App: React.FC = () => {
                   <div className="flex items-center justify-between p-6 border-b border-slate-100">
                       <h2 className="text-xl font-light text-slate-800 tracking-widest flex items-center gap-3">
                           <BookOpen size={24} className="text-teal-600"/> 
-                          操作指南
+                          {t.help.title}
                       </h2>
                       <button onClick={() => setHelpModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={24}/></button>
                   </div>
                   <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-10">
                       <div className="space-y-6">
                           <div className="space-y-3">
-                              <h3 className="text-sm font-bold text-teal-600 uppercase tracking-widest mb-4">基础交互</h3>
+                              <h3 className="text-sm font-bold text-teal-600 uppercase tracking-widest mb-4">{t.help.basic}</h3>
                               <div className="flex items-start gap-3 text-slate-600">
                                   <div className="mt-1 p-1 bg-slate-100 rounded"><MousePointer2 size={16}/></div>
                                   <div>
-                                      <p className="font-medium">左键拖拽</p>
-                                      <p className="text-xs text-slate-400 mt-0.5">移动气泡位置，或框选多个气泡</p>
+                                      <p className="font-medium">{t.help.drag}</p>
+                                      <p className="text-xs text-slate-400 mt-0.5">{t.help.dragDesc}</p>
                                   </div>
                               </div>
                               <div className="flex items-start gap-3 text-slate-600">
                                   <div className="mt-1 p-1 bg-slate-100 rounded"><Plus size={16}/></div>
                                   <div>
-                                      <p className="font-medium">双击空白处</p>
-                                      <p className="text-xs text-slate-400 mt-0.5">在当前位置快速创建新气泡</p>
+                                      <p className="font-medium">{t.help.create}</p>
+                                      <p className="text-xs text-slate-400 mt-0.5">{t.help.createDesc}</p>
                                   </div>
                               </div>
                               <div className="flex items-start gap-3 text-slate-600">
                                   <div className="mt-1 p-1 bg-slate-100 rounded"><Move size={16}/></div>
                                   <div>
-                                      <p className="font-medium">右键操作</p>
-                                      <p className="text-xs text-slate-400 mt-0.5">点击气泡唤出菜单，拖拽气泡创建连线</p>
+                                      <p className="font-medium">{t.help.right}</p>
+                                      <p className="text-xs text-slate-400 mt-0.5">{t.help.rightDesc}</p>
                                   </div>
                               </div>
                               <div className="flex items-start gap-3 text-slate-600">
                                   <div className="mt-1 p-1 bg-slate-100 rounded"><Type size={16}/></div>
                                   <div>
-                                      <p className="font-medium">双击连线</p>
-                                      <p className="text-xs text-slate-400 mt-0.5">为连线添加关系说明</p>
+                                      <p className="font-medium">{t.help.edit}</p>
+                                      <p className="text-xs text-slate-400 mt-0.5">{t.help.editDesc}</p>
                                   </div>
                               </div>
                           </div>
@@ -2191,45 +2390,45 @@ const App: React.FC = () => {
                       
                       <div className="space-y-6">
                           <div className="space-y-3">
-                              <h3 className="text-sm font-bold text-teal-600 uppercase tracking-widest mb-4">进阶技巧</h3>
+                              <h3 className="text-sm font-bold text-teal-600 uppercase tracking-widest mb-4">{t.help.advanced}</h3>
                               <div className="flex items-start gap-3 text-slate-600">
                                   <div className="mt-1 p-1 bg-slate-100 rounded"><ImageIcon size={16}/></div>
                                   <div>
-                                      <p className="font-medium">粘贴图片</p>
-                                      <p className="text-xs text-slate-400 mt-0.5">Ctrl+V 直接将剪贴板图片贴为气泡</p>
+                                      <p className="font-medium">{t.help.paste}</p>
+                                      <p className="text-xs text-slate-400 mt-0.5">{t.help.pasteDesc}</p>
                                   </div>
                               </div>
                               <div className="flex items-start gap-3 text-slate-600">
                                   <div className="mt-1 p-1 bg-slate-100 rounded"><Merge size={16}/></div>
                                   <div>
-                                      <p className="font-medium">拉紧融合</p>
-                                      <p className="text-xs text-slate-400 mt-0.5">按住连线向中间拖拽，可合并两个想法</p>
+                                      <p className="font-medium">{t.help.merge}</p>
+                                      <p className="text-xs text-slate-400 mt-0.5">{t.help.mergeDesc}</p>
                                   </div>
                               </div>
                               <div className="flex items-start gap-3 text-slate-600">
                                   <div className="mt-1 p-1 bg-slate-100 rounded"><Trash2 size={16}/></div>
                                   <div>
-                                      <p className="font-medium">拖入右下角</p>
-                                      <p className="text-xs text-slate-400 mt-0.5">将气泡拖入右下角红区可快速删除</p>
+                                      <p className="font-medium">{t.help.trash}</p>
+                                      <p className="text-xs text-slate-400 mt-0.5">{t.help.trashDesc}</p>
                                   </div>
                               </div>
                               <div className="flex items-start gap-3 text-slate-600">
                                   <div className="mt-1 p-1 bg-slate-100 rounded"><Magnet size={16}/></div>
                                   <div>
-                                      <p className="font-medium">磁铁模式</p>
-                                      <p className="text-xs text-slate-400 mt-0.5">点击磁铁图标，一键吸附整理所有游离想法</p>
+                                      <p className="font-medium">{t.help.magnet}</p>
+                                      <p className="text-xs text-slate-400 mt-0.5">{t.help.magnetDesc}</p>
                                   </div>
                               </div>
                           </div>
                       </div>
                   </div>
                   <div className="bg-slate-50 p-6 border-t border-slate-100">
-                       <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Keyboard size={14}/> 快捷键</h3>
+                       <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Keyboard size={14}/> {t.help.shortcuts}</h3>
                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs font-mono text-slate-600">
-                           <div className="flex items-center justify-between bg-white px-3 py-2 rounded border border-slate-200"><span>撤销</span> <span className="text-slate-400">Ctrl+Z</span></div>
-                           <div className="flex items-center justify-between bg-white px-3 py-2 rounded border border-slate-200"><span>重做</span> <span className="text-slate-400">Ctrl+Y</span></div>
-                           <div className="flex items-center justify-between bg-white px-3 py-2 rounded border border-slate-200"><span>确认编辑</span> <span className="text-slate-400">Enter</span></div>
-                           <div className="flex items-center justify-between bg-white px-3 py-2 rounded border border-slate-200"><span>换行</span> <span className="text-slate-400">Shift+Ent</span></div>
+                           <div className="flex items-center justify-between bg-white px-3 py-2 rounded border border-slate-200"><span>{t.help.undoKey}</span> <span className="text-slate-400">Ctrl+Z</span></div>
+                           <div className="flex items-center justify-between bg-white px-3 py-2 rounded border border-slate-200"><span>{t.help.redoKey}</span> <span className="text-slate-400">Ctrl+Y</span></div>
+                           <div className="flex items-center justify-between bg-white px-3 py-2 rounded border border-slate-200"><span>{t.help.confirmKey}</span> <span className="text-slate-400">Enter</span></div>
+                           <div className="flex items-center justify-between bg-white px-3 py-2 rounded border border-slate-200"><span>{t.help.newlineKey}</span> <span className="text-slate-400">Shift+Ent</span></div>
                        </div>
                   </div>
               </div>
@@ -2240,29 +2439,32 @@ const App: React.FC = () => {
       {!isZenMode ? (
           <div className="toolbar-container fixed bottom-8 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur shadow-2xl border border-slate-200 rounded-2xl p-2 flex items-center gap-1 z-50 transition-all duration-300">
              {/* Group 1: History */}
-             <button className={`p-3 rounded-xl transition-all ${past.length > 0 ? 'text-slate-600 hover:bg-slate-50' : 'text-slate-300 cursor-not-allowed'}`} onClick={handleUndo} title="撤销 (Ctrl+Z)" disabled={past.length === 0}><Undo2 size={20} /></button>
-             <button className={`p-3 rounded-xl transition-all ${future.length > 0 ? 'text-slate-600 hover:bg-slate-50' : 'text-slate-300 cursor-not-allowed'}`} onClick={handleRedo} title="重做 (Ctrl+Y)" disabled={future.length === 0}><Redo2 size={20} /></button>
+             <button className={`p-3 rounded-xl transition-all ${past.length > 0 ? 'text-slate-600 hover:bg-slate-50' : 'text-slate-300 cursor-not-allowed'}`} onClick={handleUndo} title={t.toolbar.undo} disabled={past.length === 0}><Undo2 size={20} /></button>
+             <button className={`p-3 rounded-xl transition-all ${future.length > 0 ? 'text-slate-600 hover:bg-slate-50' : 'text-slate-300 cursor-not-allowed'}`} onClick={handleRedo} title={t.toolbar.redo} disabled={future.length === 0}><Redo2 size={20} /></button>
              
              <div className="w-px h-8 bg-slate-100 mx-1" />
              
              {/* Group 2: Simulation/Tools */}
-             <button className={`p-3 rounded-xl transition-all ${'bg-teal-50 text-teal-600 shadow-sm'}`} onClick={() => setDefaultShape(prev => prev === 'circle' ? 'rectangle' : 'circle')} title={defaultShape === 'circle' ? "当前：圆形" : "当前：矩形"}> {defaultShape === 'circle' ? <Circle size={20} /> : <Square size={20} />} </button>
-             <button className={`p-3 rounded-xl transition-all ${hasMagnet ? 'bg-amber-100 text-amber-600 shadow-sm ring-2 ring-amber-200 ring-offset-1' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`} onClick={handleMagnetClick} title={hasMagnet ? "定位并吸引想法" : "在中心生成磁铁"}><Magnet size={20} className={hasMagnet ? "" : ""}/></button>
-             <button className={`p-3 rounded-xl transition-all ${!isFloating ? 'bg-teal-50 text-teal-600 shadow-sm ring-1 ring-teal-200' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`} onClick={() => setIsFloating(!isFloating)} title={!isFloating ? "已冻结" : "已悬浮"}><Snowflake size={20} /></button>
-             <button className={`p-3 rounded-xl transition-all ${showPhysicsSettings ? 'bg-slate-100 text-slate-700' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`} onClick={() => setShowPhysicsSettings(!showPhysicsSettings)} title="物理参数设置"><Settings2 size={20} /></button>
+             <button className={`p-3 rounded-xl transition-all ${'bg-teal-50 text-teal-600 shadow-sm'}`} onClick={() => setDefaultShape(prev => prev === 'circle' ? 'rectangle' : 'circle')} title={defaultShape === 'circle' ? t.toolbar.shapeCircle : t.toolbar.shapeRect}> {defaultShape === 'circle' ? <Circle size={20} /> : <Square size={20} />} </button>
+             <button className={`p-3 rounded-xl transition-all ${hasMagnet ? 'bg-amber-100 text-amber-600 shadow-sm ring-2 ring-amber-200 ring-offset-1' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`} onClick={handleMagnetClick} title={hasMagnet ? t.toolbar.magnetActive : t.toolbar.magnetInactive}><Magnet size={20} className={hasMagnet ? "" : ""}/></button>
+             <button className={`p-3 rounded-xl transition-all ${!isFloating ? 'bg-teal-50 text-teal-600 shadow-sm ring-1 ring-teal-200' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`} onClick={() => setIsFloating(!isFloating)} title={!isFloating ? t.toolbar.frozen : t.toolbar.floating}><Snowflake size={20} /></button>
+             <button className={`p-3 rounded-xl transition-all ${showPhysicsSettings ? 'bg-slate-100 text-slate-700' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`} onClick={() => setShowPhysicsSettings(!showPhysicsSettings)} title={t.toolbar.physics}><Settings2 size={20} /></button>
 
              <div className="w-px h-8 bg-slate-100 mx-1" />
 
              {/* Group 3: View/IO */}
-             <button className="p-3 rounded-xl text-slate-400 hover:bg-slate-50 hover:text-slate-600 transition-all" onClick={handleResetView} title="适应画布 (Fit View)"><Maximize size={20} /></button>
-             <button className={`p-3 rounded-xl transition-all text-slate-400 hover:bg-slate-50 hover:text-indigo-600`} onClick={() => setIsZenMode(true)} title="禅模式 (隐藏界面)"><Eye size={20} /></button>
-             <button className={`p-3 rounded-xl transition-all ${ioModalOpen ? 'bg-slate-100 text-teal-600' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`} onClick={handleOpenExport} title="导出/导入 Mermaid 代码"><Code size={20}/></button>
+             <button className="p-3 rounded-xl text-slate-400 hover:bg-slate-50 hover:text-slate-600 transition-all" onClick={handleResetView} title={t.toolbar.fitView}><Maximize size={20} /></button>
+             <button className={`p-3 rounded-xl transition-all text-slate-400 hover:bg-slate-50 hover:text-indigo-600`} onClick={() => setIsZenMode(true)} title={t.toolbar.zenMode}><Eye size={20} /></button>
+             <button className={`p-3 rounded-xl transition-all ${ioModalOpen ? 'bg-slate-100 text-teal-600' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`} onClick={handleOpenExport} title={t.toolbar.io}><Code size={20}/></button>
 
              <div className="w-px h-8 bg-slate-100 mx-1" />
 
              {/* Group 4: System */}
-             <button className={`p-3 rounded-xl transition-all ${isMuted ? 'text-slate-400' : 'text-slate-600 hover:bg-slate-50'}`} onClick={() => setIsMuted(!isMuted)} title={isMuted ? "已静音" : "开启音效"}>{isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}</button>
-             <button className={`p-3 rounded-xl transition-all ${helpModalOpen ? 'bg-teal-50 text-teal-600' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`} onClick={() => setHelpModalOpen(true)} title="操作说明"><BookOpen size={20}/></button>
+             <button className={`p-3 rounded-xl transition-all ${isMuted ? 'text-slate-400' : 'text-slate-600 hover:bg-slate-50'}`} onClick={() => setIsMuted(!isMuted)} title={isMuted ? t.toolbar.muted : t.toolbar.soundOn}>{isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}</button>
+             <button className={`p-3 rounded-xl transition-all ${helpModalOpen ? 'bg-teal-50 text-teal-600' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`} onClick={() => setHelpModalOpen(true)} title={t.toolbar.help}><BookOpen size={20}/></button>
+             <button className="px-2 py-3 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-50 hover:text-teal-600 transition-all flex flex-col items-center justify-center gap-0.5" onClick={() => setLang(l => l === 'zh' ? 'en' : 'zh')} title={t.toolbar.lang}>
+                 <span>{lang === 'zh' ? '中' : 'En'}</span>
+             </button>
           </div>
       ) : (
           /* ZEN MODE EXIT TRIGGER AREA */
@@ -2276,7 +2478,7 @@ const App: React.FC = () => {
                 onClick={() => setIsZenMode(false)}
               >
                   <EyeOff size={18} strokeWidth={1.5} />
-                  <span className="font-light text-sm tracking-widest">退出禅模式</span>
+                  <span className="font-light text-sm tracking-widest">{t.toolbar.exitZen}</span>
               </button>
           </div>
       )}
@@ -2310,7 +2512,7 @@ const App: React.FC = () => {
         <div ref={trashRef} className={`fixed bottom-0 right-0 z-0 transition-all duration-300 pointer-events-none rounded-tl-full ${isOverTrash ? 'opacity-100' : 'opacity-30'}`} style={{ width: '400px', height: '400px', background: `radial-gradient(circle at 100% 100%, ${isOverTrash ? '#fecaca' : '#cbd5e1'} 0%, transparent 60%)` }}>
             <div className={`absolute bottom-12 right-12 transition-all duration-300 flex flex-col items-center gap-2 ${isOverTrash ? 'scale-125 text-red-500' : 'scale-100 text-slate-400'}`}>
               <Trash2 size={40} strokeWidth={isOverTrash ? 2 : 1.5} className={isOverTrash ? 'animate-bounce' : ''}/>
-              <span className={`text-xs font-medium tracking-widest uppercase transition-opacity ${isOverTrash ? 'opacity-100' : 'opacity-0'}`}>释放删除</span>
+              <span className={`text-xs font-medium tracking-widest uppercase transition-opacity ${isOverTrash ? 'opacity-100' : 'opacity-0'}`}>{t.canvas.deleteZone}</span>
             </div>
         </div>
       )}
@@ -2321,17 +2523,17 @@ const App: React.FC = () => {
             <div className="absolute inset-0 bg-slate-900/30 backdrop-blur-sm" onClick={() => setIoModalOpen(false)} />
             <div className="io-modal relative bg-white rounded-xl shadow-2xl border border-slate-200 w-[500px] animate-in flex flex-col overflow-hidden" style={{ transformOrigin: 'center' }}>
                 <div className="flex border-b border-slate-100">
-                    <button onClick={() => { setIoMode('export'); handleOpenExport(); }} className={`flex-1 py-4 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${ioMode === 'export' ? 'text-teal-600 bg-teal-50/50 border-b-2 border-teal-600' : 'text-slate-500 hover:bg-slate-50'}`}><Download size={16}/> 导出 Mermaid</button>
-                    <button onClick={() => { setIoMode('import'); setIoText(''); }} className={`flex-1 py-4 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${ioMode === 'import' ? 'text-teal-600 bg-teal-50/50 border-b-2 border-teal-600' : 'text-slate-500 hover:bg-slate-50'}`}><Upload size={16}/> 导入 Mermaid</button>
+                    <button onClick={() => { setIoMode('export'); handleOpenExport(); }} className={`flex-1 py-4 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${ioMode === 'export' ? 'text-teal-600 bg-teal-50/50 border-b-2 border-teal-600' : 'text-slate-500 hover:bg-slate-50'}`}><Download size={16}/> {t.io.export}</button>
+                    <button onClick={() => { setIoMode('import'); setIoText(''); }} className={`flex-1 py-4 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${ioMode === 'import' ? 'text-teal-600 bg-teal-50/50 border-b-2 border-teal-600' : 'text-slate-500 hover:bg-slate-50'}`}><Upload size={16}/> {t.io.import}</button>
                     <button onClick={() => setIoModalOpen(false)} className="absolute top-3 right-3 text-slate-400 hover:text-slate-600 p-1 hover:bg-slate-100 rounded-full"><X size={18}/></button>
                 </div>
                 <div className="p-5 flex-1 flex flex-col gap-4">
-                    {ioMode === 'export' && (<button onClick={handleExportImage} className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium text-sm transition-all flex items-center justify-center gap-2 mb-2"><ImageIcon size={16}/> 导出为图片 (PNG)</button>)}
+                    {ioMode === 'export' && (<button onClick={handleExportImage} className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium text-sm transition-all flex items-center justify-center gap-2 mb-2"><ImageIcon size={16}/> {t.io.exportImg}</button>)}
                     <div className="relative flex-1">
-                        <textarea value={ioText} onChange={(e) => setIoText(e.target.value)} readOnly={ioMode === 'export'} placeholder={ioMode === 'import' ? "粘贴 Mermaid 流程图代码...\n例如：\nA[想法] --> B((灵感))" : ""} className="w-full h-64 bg-slate-50 border border-slate-200 rounded-lg p-4 font-mono text-xs text-slate-700 focus:ring-2 focus:ring-teal-500 outline-none resize-none" spellCheck={false}/>
-                        {ioMode === 'export' && (<button onClick={handleCopyCode} className="absolute top-3 right-3 p-2 bg-white border border-slate-200 rounded-md shadow-sm hover:bg-slate-50 text-slate-600 transition-all active:scale-95" title="复制">{copySuccess ? <Check size={16} className="text-green-500"/> : <Copy size={16}/>}</button>)}
+                        <textarea value={ioText} onChange={(e) => setIoText(e.target.value)} readOnly={ioMode === 'export'} placeholder={ioMode === 'import' ? t.io.placeholderImport : ""} className="w-full h-64 bg-slate-50 border border-slate-200 rounded-lg p-4 font-mono text-xs text-slate-700 focus:ring-2 focus:ring-teal-500 outline-none resize-none" spellCheck={false}/>
+                        {ioMode === 'export' && (<button onClick={handleCopyCode} className="absolute top-3 right-3 p-2 bg-white border border-slate-200 rounded-md shadow-sm hover:bg-slate-50 text-slate-600 transition-all active:scale-95" title={t.io.copy}>{copySuccess ? <Check size={16} className="text-green-500"/> : <Copy size={16}/>}</button>)}
                     </div>
-                    {ioMode === 'import' ? (<button onClick={handleImportMermaid} className="w-full py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium text-sm transition-all flex items-center justify-center gap-2 shadow-sm shadow-teal-200"><Upload size={16}/> 导入并生成脑图</button>) : (<div className="text-xs text-slate-400 text-center">复制上方代码，可在 Notion 或 GitHub 中直接展示流程图。</div>)}
+                    {ioMode === 'import' ? (<button onClick={handleImportMermaid} className="w-full py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium text-sm transition-all flex items-center justify-center gap-2 shadow-sm shadow-teal-200"><Upload size={16}/> {t.io.importBtn}</button>) : (<div className="text-xs text-slate-400 text-center">{t.io.importHint}</div>)}
                 </div>
             </div>
         </div>
@@ -2348,13 +2550,13 @@ const App: React.FC = () => {
         >
            {/* Color Palette */}
            <div className="px-4 py-2 border-b border-slate-100/50">
-               <span className="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-2 flex items-center gap-1"><Palette size={12}/> 颜色</span>
+               <span className="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-2 flex items-center gap-1"><Palette size={12}/> {t.context.color}</span>
                <div className="flex gap-1.5 flex-wrap">
                    {/* Default White */}
                     <button 
                         onClick={() => contextMenu.nodeId && updateNodeColor(contextMenu.nodeId, '#fff')}
                         className="w-5 h-5 rounded-full border border-slate-200 hover:scale-110 transition-transform bg-white"
-                        title="默认白"
+                        title={t.context.defaultWhite}
                     />
                    {COLORS.map(color => (
                        <button 
@@ -2371,7 +2573,7 @@ const App: React.FC = () => {
                <div className="p-1.5 rounded-lg bg-teal-50 text-teal-600 group-hover:bg-teal-100 transition-colors">
                    {nodes.find(n => n.id === contextMenu.nodeId)?.shape === 'circle' ? <Square size={16} /> : <Circle size={16}/>}
                </div>
-               <span className="font-medium">切换形状</span>
+               <span className="font-medium">{t.context.toggleShape}</span>
            </button>
            
            <div className="h-px bg-slate-200/50 mx-4 my-1"/>
@@ -2380,14 +2582,14 @@ const App: React.FC = () => {
                <div className="p-1.5 rounded-lg bg-slate-100 text-slate-600 group-hover:bg-slate-200 transition-colors">
                  {(() => { const targetIds = (contextMenu.nodeId && selectedNodeIds.has(contextMenu.nodeId)) ? selectedNodeIds : new Set([contextMenu.nodeId!]); const isAnyUnpinned = nodes.some(n => targetIds.has(n.id) && !n.pinned); return isAnyUnpinned ? <Pin size={16}/> : <PinOff size={16}/>; })()} 
                </div>
-               <span className="font-medium">{(() => { const targetIds = (contextMenu.nodeId && selectedNodeIds.has(contextMenu.nodeId)) ? selectedNodeIds : new Set([contextMenu.nodeId!]); const isAnyUnpinned = nodes.some(n => targetIds.has(n.id) && !n.pinned); return isAnyUnpinned ? "固定位置" : "解除固定"; })()}</span>
+               <span className="font-medium">{(() => { const targetIds = (contextMenu.nodeId && selectedNodeIds.has(contextMenu.nodeId)) ? selectedNodeIds : new Set([contextMenu.nodeId!]); const isAnyUnpinned = nodes.some(n => targetIds.has(n.id) && !n.pinned); return isAnyUnpinned ? t.context.pin : t.context.unpin; })()}</span>
            </button>
            
            <button className="group w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-white/50 flex items-center gap-3 transition-all active:scale-95" onClick={() => { if (contextMenu.nodeId) { const targetIds = selectedNodeIds.has(contextMenu.nodeId) ? selectedNodeIds : new Set([contextMenu.nodeId]); saveHistory(); setEdges(prev => prev.filter(e => !targetIds.has(e.source) && !targetIds.has(e.target))); playSound('unlink', isMuted); } setContextMenu(null); }}>
                <div className="p-1.5 rounded-lg bg-slate-100 text-slate-600 group-hover:bg-slate-200 transition-colors">
                    <Unlink size={16}/>
                </div>
-               <span className="font-medium">断开连接</span>
+               <span className="font-medium">{t.context.unlink}</span>
            </button>
            
            <div className="h-px bg-slate-200/50 mx-4 my-1"/>
@@ -2396,7 +2598,7 @@ const App: React.FC = () => {
                <div className="p-1.5 rounded-lg bg-red-100 text-red-500 group-hover:bg-red-200 transition-colors">
                    <Trash2 size={16}/>
                </div>
-               <span className="font-medium">删除气泡</span>
+               <span className="font-medium">{t.context.delete}</span>
            </button>
         </div>
         </>
