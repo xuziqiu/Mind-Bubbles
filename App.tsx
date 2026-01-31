@@ -37,7 +37,8 @@ import {
   BookOpen,
   Keyboard,
   Palette,
-  Type
+  Type,
+  Maximize
 } from 'lucide-react';
 
 // --- AUDIO SYSTEM (Web Audio API) ---
@@ -375,12 +376,67 @@ const App: React.FC = () => {
      }));
   }, []);
 
+  // --- Fit View Logic ---
+  const performFitView = useCallback((currentNodes: GraphNode[]) => {
+      if (currentNodes.length === 0) {
+          setView({ scale: 1, translateX: window.innerWidth / 2, translateY: window.innerHeight / 2 });
+          return;
+      }
+
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      currentNodes.forEach(n => {
+          const r = n.shape === 'circle' ? n.dimensions.circleRadius : Math.max(n.dimensions.rectWidth, n.dimensions.rectHeight) / 2;
+          minX = Math.min(minX, n.x - r);
+          minY = Math.min(minY, n.y - r);
+          maxX = Math.max(maxX, n.x + r);
+          maxY = Math.max(maxY, n.y + r);
+      });
+
+      // Add padding
+      const padding = 100;
+      const width = maxX - minX + padding * 2;
+      const height = maxY - minY + padding * 2;
+      
+      const centerX = (minX + maxX) / 2;
+      const centerY = (minY + maxY) / 2;
+
+      // Calculate needed scale to fit
+      const scaleX = window.innerWidth / width;
+      const scaleY = window.innerHeight / height;
+      const newScale = Math.min(Math.max(Math.min(scaleX, scaleY), MIN_ZOOM), MAX_ZOOM); // Clamp scale
+
+      const newTx = (window.innerWidth / 2) - (centerX * newScale);
+      const newTy = (window.innerHeight / 2) - (centerY * newScale);
+
+      // Animate to new view
+      const startTx = view.translateX;
+      const startTy = view.translateY;
+      const startScale = view.scale;
+      const startT = performance.now();
+
+      const animate = (time: number) => {
+          const t = Math.min((time - startT) / 600, 1);
+          const ease = 1 - Math.pow(1 - t, 3); // Cubic ease out
+          
+          setView({ 
+              scale: startScale + (newScale - startScale) * ease, 
+              translateX: startTx + (newTx - startTx) * ease, 
+              translateY: startTy + (newTy - startTy) * ease 
+          });
+          
+          if (t < 1) requestAnimationFrame(animate);
+      };
+      requestAnimationFrame(animate);
+  }, [view]);
+
   // --- Load / Save ---
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
+        let nodesLoaded = false;
+        
         if (parsed.nodes && Array.isArray(parsed.nodes)) {
           const migratedNodes = parsed.nodes.map((n: any) => ({
              ...n, vx: n.vx || 0, vy: n.vy || 0
@@ -388,19 +444,30 @@ const App: React.FC = () => {
           setNodes(migratedNodes);
           setEdges(parsed.edges || []);
           if (parsed.nodes.length > 2) setHasInteracted(true);
+          nodesLoaded = true;
+        }
+
+        // Restore View if available, otherwise Auto-Fit
+        if (parsed.view) {
+            setView(parsed.view);
+        } else if (nodesLoaded) {
+            // Need to wait for next tick for simulationNodes to populate? 
+            // Actually they populate in useLayoutEffect which runs after render.
+            // But we can use the parsed nodes directly for calculation to avoid delay
+            setTimeout(() => performFitView(parsed.nodes), 100);
         }
       } catch (e) {
         console.error("Failed to load saved data", e);
       }
     }
-  }, []);
+  }, []); // Only run on mount
 
   useEffect(() => {
     const timeout = setTimeout(() => {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ nodes, edges }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ nodes, edges, view }));
     }, 500);
     return () => clearTimeout(timeout);
-  }, [nodes, edges]);
+  }, [nodes, edges, view]);
 
   // --- Paste Handler (Images) ---
   useEffect(() => {
@@ -1275,7 +1342,8 @@ const App: React.FC = () => {
   const handleResetView = () => {
       setHasInteracted(true);
       playSound('click', isMuted);
-      setView({ scale: 1, translateX: window.innerWidth / 2, translateY: window.innerHeight / 2 });
+      // Instead of simple reset, fit view
+      performFitView(simulationNodes.current);
   };
 
   // --- Event Handlers ---
@@ -1689,6 +1757,13 @@ const App: React.FC = () => {
       onDoubleClick={handleDoubleClick}
       onWheel={handleWheel}
       onContextMenu={(e) => e.preventDefault()}
+      style={{
+          // Dynamic Background: Moves with translation and scales dot pattern
+          // We use background-position to move the grid
+          // We use background-size to scale the dots relative to zoom
+          backgroundPosition: `${view.translateX}px ${view.translateY}px`,
+          backgroundSize: `${24 * view.scale}px ${24 * view.scale}px`
+      }}
     >
       <svg className="absolute inset-0 w-full h-full pointer-events-none">
         <g transform={`translate(${view.translateX}, ${view.translateY}) scale(${view.scale})`}>
@@ -2047,9 +2122,6 @@ const App: React.FC = () => {
                     <span className="text-xs uppercase text-slate-400">中键 · 平移画布</span>
                 </div>
             </div>
-             <div className="mt-12 px-4 py-2 bg-slate-200/50 rounded-full text-slate-600 font-medium text-sm tracking-widest backdrop-blur-sm">
-                提示：Ctrl+V 可直接粘贴图片
-            </div>
           </div>
       )}
 
@@ -2182,7 +2254,7 @@ const App: React.FC = () => {
              <div className="w-px h-8 bg-slate-100 mx-1" />
 
              {/* Group 3: View/IO */}
-             <button className="p-3 rounded-xl text-slate-400 hover:bg-slate-50 hover:text-slate-600 transition-all" onClick={handleResetView} title="回到中心"><Target size={20} /></button>
+             <button className="p-3 rounded-xl text-slate-400 hover:bg-slate-50 hover:text-slate-600 transition-all" onClick={handleResetView} title="适应画布 (Fit View)"><Maximize size={20} /></button>
              <button className={`p-3 rounded-xl transition-all text-slate-400 hover:bg-slate-50 hover:text-indigo-600`} onClick={() => setIsZenMode(true)} title="禅模式 (隐藏界面)"><Eye size={20} /></button>
              <button className={`p-3 rounded-xl transition-all ${ioModalOpen ? 'bg-slate-100 text-teal-600' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`} onClick={handleOpenExport} title="导出/导入 Mermaid 代码"><Code size={20}/></button>
 
