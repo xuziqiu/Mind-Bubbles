@@ -403,6 +403,25 @@ const App: React.FC = () => {
 
   const t = TRANSLATIONS[lang];
 
+  // --- Language Toggle with Smart Content Update ---
+  const toggleLang = () => {
+      setLang(prev => {
+          const newLang = prev === 'zh' ? 'en' : 'zh';
+          const prevT = TRANSLATIONS[prev];
+          const newT = TRANSLATIONS[newLang];
+          
+          // Smart update: Translate default nodes that haven't been edited
+          setNodes(currentNodes => currentNodes.map(n => {
+              // Exact match check for default node text
+              if (n.text === prevT.defaultNode) return { ...n, text: newT.defaultNode };
+              if (n.text === prevT.magnetNode) return { ...n, text: newT.magnetNode };
+              return n;
+          }));
+          
+          return newLang;
+      });
+  };
+
   // --- Selection & Edit State ---
   const [selectedNodeIds, setSelectedNodeIds] = useState<Set<string>>(new Set());
   const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
@@ -839,8 +858,12 @@ const App: React.FC = () => {
                   else { newDims.rectWidth *= 1.1; newDims.rectHeight *= 1.1; }
                   
                   let newText = n.text;
-                  // SIMPLIFIED MERGE LOGIC: Always merge text unless it's the placeholder "想法" or "Idea"
-                  if (absorbed.text !== '想法' && absorbed.text !== 'Idea') {
+                  
+                  // MULTILINGUAL MERGE LOGIC: 
+                  // Don't merge text if it is ANY language's default "Idea" placeholder
+                  const isPlaceholder = Object.values(TRANSLATIONS).some(tr => tr.defaultNode === absorbed.text);
+                  
+                  if (!isPlaceholder) {
                       newText = n.text + '\n' + absorbed.text;
                   }
                   
@@ -2462,7 +2485,7 @@ const App: React.FC = () => {
              {/* Group 4: System */}
              <button className={`p-3 rounded-xl transition-all ${isMuted ? 'text-slate-400' : 'text-slate-600 hover:bg-slate-50'}`} onClick={() => setIsMuted(!isMuted)} title={isMuted ? t.toolbar.muted : t.toolbar.soundOn}>{isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}</button>
              <button className={`p-3 rounded-xl transition-all ${helpModalOpen ? 'bg-teal-50 text-teal-600' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`} onClick={() => setHelpModalOpen(true)} title={t.toolbar.help}><BookOpen size={20}/></button>
-             <button className="px-2 py-3 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-50 hover:text-teal-600 transition-all flex flex-col items-center justify-center gap-0.5" onClick={() => setLang(l => l === 'zh' ? 'en' : 'zh')} title={t.toolbar.lang}>
+             <button className="px-2 py-3 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-50 hover:text-teal-600 transition-all flex flex-col items-center justify-center gap-0.5" onClick={toggleLang} title={t.toolbar.lang}>
                  <span>{lang === 'zh' ? '中' : 'En'}</span>
              </button>
           </div>
