@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useCallback, useEffect, useLayoutEffect } from 'react';
 import { Node as GraphNode, Edge, ViewState, ContextMenuState } from './types';
 import { COLORS, INITIAL_NODES, INITIAL_EDGES, ZOOM_SENSITIVITY, MIN_ZOOM, MAX_ZOOM, DEFAULT_DIMENSIONS, DEFAULT_PHYSICS } from './constants';
@@ -826,6 +825,7 @@ const App: React.FC = () => {
           const count = generatedIdeas.length;
           const radius = 200; // Distance from parent
           const startAngle = Math.random() * Math.PI * 2;
+          const parentColor = parentNode.color || COLORS[0];
 
           generatedIdeas.forEach((idea, index) => {
               const angle = startAngle + (index / count) * Math.PI * 2;
@@ -838,10 +838,9 @@ const App: React.FC = () => {
                   text: idea,
                   x: nx,
                   y: ny,
-                  // Inherit color but slightly different or just keep standard palette logic?
-                  // Let's cycle colors for variety
-                  color: COLORS[(index) % COLORS.length], 
-                  shape: parentNode.shape, // Inherit shape style? Or default to Circle? Let's keep circle for ideas.
+                  // Inherit color from parent
+                  color: parentColor, 
+                  shape: parentNode.shape, // Inherit shape style
                   dimensions: { ...DEFAULT_DIMENSIONS },
                   vx: 0, 
                   vy: 0
