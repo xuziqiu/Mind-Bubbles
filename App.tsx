@@ -2,6 +2,7 @@
 import React, { useState, useRef, useCallback, useEffect, useLayoutEffect } from 'react';
 import { Node as GraphNode, Edge, ViewState, ContextMenuState } from './types';
 import { COLORS, INITIAL_NODES, INITIAL_EDGES, ZOOM_SENSITIVITY, MIN_ZOOM, MAX_ZOOM, DEFAULT_DIMENSIONS, DEFAULT_PHYSICS } from './constants';
+import { brainstormSubNodes } from './services/gemini';
 import { 
   MousePointer2, 
   Trash2,
@@ -39,7 +40,9 @@ import {
   Palette,
   Type,
   Maximize,
-  Languages
+  Languages,
+  Sparkles,
+  Loader2
 } from 'lucide-react';
 
 // --- TRANSLATIONS ---
@@ -99,7 +102,8 @@ const TRANSLATIONS = {
       pin: "固定位置",
       unpin: "解除固定",
       unlink: "断开连接",
-      delete: "删除气泡"
+      delete: "删除气泡",
+      brainstorm: "AI 灵感发散"
     },
     canvas: {
       create: "创建气泡",
@@ -108,7 +112,8 @@ const TRANSLATIONS = {
       split: "插入连线",
       merge: "拉紧融合",
       deleteZone: "释放删除",
-      emptyState: "双击空白处创建"
+      emptyState: "双击空白处创建",
+      thinking: "正在思考..."
     },
     help: {
       title: "操作指南",
@@ -192,7 +197,8 @@ const TRANSLATIONS = {
       pin: "Pin Position",
       unpin: "Unpin",
       unlink: "Unlink",
-      delete: "Delete Node"
+      delete: "Delete Node",
+      brainstorm: "AI Brainstorm"
     },
     canvas: {
       create: "Create Bubble",
@@ -201,7 +207,8 @@ const TRANSLATIONS = {
       split: "Split Edge",
       merge: "Merge",
       deleteZone: "Drop to Delete",
-      emptyState: "Double click to create"
+      emptyState: "Double click to create",
+      thinking: "Thinking..."
     },
     help: {
       title: "User Guide",
@@ -379,6 +386,7 @@ const App: React.FC = () => {
   const [isMuted, setIsMuted] = useState(false);
   const [isZenMode, setIsZenMode] = useState(false);
   const [helpModalOpen, setHelpModalOpen] = useState(false);
+  const [isThinking, setIsThinking] = useState(false);
   const [lang, setLang] = useState<'zh' | 'en'>(() => {
       return (localStorage.getItem(LANG_KEY) as 'zh' | 'en') || 'zh';
   });
@@ -732,6 +740,19 @@ const App: React.FC = () => {
     setEditingNodeId(null);
   }, [future, nodes, edges]);
 
+  const deleteNodes = (idsToDelete: Set<string>) => {
+    if (idsToDelete.size > 0) {
+        saveHistory();
+        playSound('delete', isMuted);
+    }
+    const currentSim = simulationNodes.current;
+    currentSim.forEach(n => { if (idsToDelete.has(n.id)) triggerEffect(n.x, n.y, 'delete'); });
+    setNodes(prev => prev.filter(n => !idsToDelete.has(n.id)));
+    setEdges(prev => prev.filter(e => !idsToDelete.has(e.source) && !idsToDelete.has(e.target)));
+    setSelectedNodeIds(new Set());
+    setEditingNodeId(null);
+  };
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (editingNodeId) {
@@ -755,10 +776,26 @@ const App: React.FC = () => {
       if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.shiftKey && e.key === 'Z'))) {
          handleRedo(); e.preventDefault();
       }
+
+      // New Shortcuts: Delete / Backspace
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+          if (selectedNodeIds.size > 0) {
+              deleteNodes(selectedNodeIds);
+          }
+      }
+
+      // New Shortcut: Escape to deselect / close menus
+      if (e.key === 'Escape') {
+          setSelectedNodeIds(new Set());
+          setContextMenu(null);
+          setHelpModalOpen(false);
+          setShowPhysicsSettings(false);
+          setIoModalOpen(false);
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleUndo, handleRedo, editingNodeId, editingEdgeId]);
+  }, [handleUndo, handleRedo, editingNodeId, editingEdgeId, selectedNodeIds, deleteNodes]);
 
   const triggerEffect = (x: number, y: number, type: VisualEffect['type']) => {
       const id = Math.random().toString(36).slice(2);
@@ -766,6 +803,64 @@ const App: React.FC = () => {
       setTimeout(() => {
           setEffects(prev => prev.filter(e => e.id !== id));
       }, 800); 
+  };
+
+  const handleBrainstorm = async (parentNodeId: string) => {
+      const parentNode = nodes.find(n => n.id === parentNodeId);
+      if (!parentNode || !parentNode.text) return;
+
+      setIsThinking(true);
+      setContextMenu(null);
+
+      const generatedIdeas = await brainstormSubNodes(parentNode.text, lang);
+      
+      if (generatedIdeas.length > 0) {
+          syncSimulationToState();
+          saveHistory();
+          playSound('pop', isMuted);
+
+          const newNodes: GraphNode[] = [];
+          const newEdges: Edge[] = [];
+          
+          // Generate positions in a circle around the parent
+          const count = generatedIdeas.length;
+          const radius = 200; // Distance from parent
+          const startAngle = Math.random() * Math.PI * 2;
+
+          generatedIdeas.forEach((idea, index) => {
+              const angle = startAngle + (index / count) * Math.PI * 2;
+              const nx = parentNode.x + Math.cos(angle) * radius;
+              const ny = parentNode.y + Math.sin(angle) * radius;
+              
+              const newNodeId = Math.random().toString(36).slice(2);
+              const newNode: GraphNode = {
+                  id: newNodeId,
+                  text: idea,
+                  x: nx,
+                  y: ny,
+                  // Inherit color but slightly different or just keep standard palette logic?
+                  // Let's cycle colors for variety
+                  color: COLORS[(index) % COLORS.length], 
+                  shape: parentNode.shape, // Inherit shape style? Or default to Circle? Let's keep circle for ideas.
+                  dimensions: { ...DEFAULT_DIMENSIONS },
+                  vx: 0, 
+                  vy: 0
+              };
+              
+              triggerEffect(nx, ny, 'create');
+              newNodes.push(newNode);
+              newEdges.push({ 
+                  id: Math.random().toString(36).slice(2), 
+                  source: parentNodeId, 
+                  target: newNodeId 
+              });
+          });
+
+          setNodes(prev => [...prev, ...newNodes]);
+          setEdges(prev => [...prev, ...newEdges]);
+      }
+      
+      setIsThinking(false);
   };
 
   const performMerge = (nodeAId: string, nodeBId: string) => {
@@ -1268,234 +1363,174 @@ const App: React.FC = () => {
       else alert(t.io.error);
   };
 
-  const deleteNodes = (idsToDelete: Set<string>) => {
-    if (idsToDelete.size > 0) {
-        saveHistory();
-        playSound('delete', isMuted);
-    }
-    const currentSim = simulationNodes.current;
-    currentSim.forEach(n => { if (idsToDelete.has(n.id)) triggerEffect(n.x, n.y, 'delete'); });
-    setNodes(prev => prev.filter(n => !idsToDelete.has(n.id)));
-    setEdges(prev => prev.filter(e => !idsToDelete.has(e.source) && !idsToDelete.has(e.target)));
-    setSelectedNodeIds(new Set());
-    setEditingNodeId(null);
+  const checkLinkAction = (sources: string[], targetId: string) => {
+      const allLinked = sources.every(sourceId => 
+          edges.some(e => (e.source === sourceId && e.target === targetId) || (e.source === targetId && e.target === sourceId))
+      );
+      return allLinked ? 'unlink' : 'link';
   };
 
-  const toggleShape = (targetId: string) => {
-    syncSimulationToState();
-    saveHistory();
-    playSound('click', isMuted);
-    
-    const targetIds = selectedNodeIds.has(targetId) ? selectedNodeIds : new Set([targetId]);
-    
-    setNodes(prev => prev.map(n => {
-        if (targetIds.has(n.id)) {
-            return { ...n, shape: n.shape === 'circle' ? 'rectangle' : 'circle' };
-        }
-        return n;
-    }));
-    
-    setContextMenu(null);
-  };
+  const handleLinkAction = (targetId: string | null, x: number, y: number) => {
+      const sources = dragRef.current.linkSources;
+      if (sources.length === 0) return;
 
-  const checkLinkAction = (sources: string[], targetId: string | null) => {
-    if (!targetId) return 'create';
-    const isConnected = sources.every(src => edges.some(e => (e.source === src && e.target === targetId) || (e.source === targetId && e.target === src)));
-    return isConnected ? 'unlink' : 'link';
-  };
-
-  const handleLinkAction = (targetNodeId: string | null, mouseCanvasX: number, mouseCanvasY: number) => {
-    const sources = dragRef.current.linkSources;
-    if (sources.length === 0 && !hoveredEdgeId) return; 
-
-    if (targetNodeId) {
-       const action = checkLinkAction(sources, targetNodeId);
-       if (action === 'link' || action === 'unlink') saveHistory();
-       
-       if (action === 'link') playSound('link', isMuted);
-       if (action === 'unlink') playSound('unlink', isMuted);
-
-       setEdges(prev => {
-         if (action === 'unlink') {
-            return prev.filter(e => !((sources.includes(e.source) && e.target === targetNodeId) || (sources.includes(e.target) && e.source === targetNodeId)));
-         } else {
-            const newEdges = [...prev];
-            sources.forEach(src => {
-                if (src === targetNodeId) return;
-                const exists = prev.some(e => (e.source === src && e.target === targetNodeId) || (e.source === targetNodeId && e.target === src));
-                if (!exists) newEdges.push({ id: Math.random().toString(36).slice(2), source: src, target: targetNodeId });
-            });
-            return newEdges;
-         }
-       });
-    } 
-    else if (hoveredEdgeId) {
-        syncSimulationToState(); 
-        saveHistory();
-        playSound('pop', isMuted);
-        const splitEdge = edges.find(e => e.id === hoveredEdgeId);
-        if (splitEdge) {
-            const newNodeId = Math.random().toString(36).slice(2);
-            const newNode: GraphNode = {
-                id: newNodeId, text: t.defaultNode, x: mouseCanvasX, y: mouseCanvasY,
-                color: COLORS[0], shape: defaultShape, dimensions: { ...DEFAULT_DIMENSIONS }, vx: 0, vy: 0
-            };
-            triggerEffect(mouseCanvasX, mouseCanvasY, 'create');
-            
-            setEdges(prev => [
-                ...prev.filter(e => e.id !== hoveredEdgeId),
-                { id: Math.random().toString(36), source: splitEdge.source, target: newNodeId, label: splitEdge.label },
-                { id: Math.random().toString(36), source: newNodeId, target: splitEdge.target },
-                ...sources.map(src => ({ id: Math.random().toString(36), source: src, target: newNodeId }))
-            ]);
-            setNodes(prev => [...prev, newNode]);
-            setEditingNodeId(newNodeId);
-            setSelectedNodeIds(new Set([newNodeId]));
-        }
-    }
-    else if (sources.length > 0) {
       syncSimulationToState();
       saveHistory();
-      playSound('pop', isMuted);
-      const newNodeId = Math.random().toString(36).slice(2);
-      const newNode: GraphNode = {
-        id: newNodeId, text: t.defaultNode, x: mouseCanvasX, y: mouseCanvasY,
-        color: COLORS[0], shape: defaultShape, dimensions: { ...DEFAULT_DIMENSIONS }, vx: 0, vy: 0
-      };
-      triggerEffect(mouseCanvasX, mouseCanvasY, 'create');
-      const newEdges = sources.map(srcId => ({ id: Math.random().toString(36).slice(2), source: srcId, target: newNodeId }));
-      setNodes(prev => [...prev, newNode]);
-      setEdges(prev => [...prev, ...newEdges]);
-      setEditingNodeId(newNodeId);
-      setSelectedNodeIds(new Set([newNodeId]));
-    }
-  };
 
-  const spawnMagnetNode = (x: number, y: number) => {
-    syncSimulationToState();
-    saveHistory();
-    playSound('pop', isMuted);
-    const magnetId = 'magnet-' + Math.random().toString(36).slice(2);
-    const magnetNode: GraphNode = {
-      id: magnetId, text: t.magnetNode, type: 'magnet', x, y, color: '#d97706', shape: 'circle',
-      dimensions: { circleRadius: 60, rectWidth: 180, rectHeight: 120 }, vx: 0, vy: 0
-    };
-    triggerEffect(x, y, 'create');
-    setNodes(prev => [...prev, magnetNode]);
-    setEdges(prev => {
-      const connected = new Set<string>();
-      prev.forEach(e => { connected.add(e.source); connected.add(e.target); });
-      const isolated = nodes.filter(n => !connected.has(n.id) && n.id !== magnetId);
-      return [...prev, ...isolated.map(n => ({ id: `edge-${Math.random()}`, source: magnetId, target: n.id }))];
-    });
-    setSelectedNodeIds(new Set([magnetId]));
-  };
+      if (targetId) {
+          if (sources.includes(targetId)) return; 
 
-  const handleCaptureAndLocate = () => {
-    const magnet = simulationNodes.current.find(n => n.type === 'magnet');
-    if (!magnet) return;
-    
-    syncSimulationToState();
-    saveHistory();
-    playSound('link', isMuted);
-    
-    triggerEffect(magnet.x, magnet.y, 'link');
-
-    setEdges(prev => {
-        const pureEdges = prev.filter(e => e.source !== magnet.id && e.target !== magnet.id);
-        const connectedNodeIds = new Set<string>();
-        pureEdges.forEach(e => {
-            connectedNodeIds.add(e.source);
-            connectedNodeIds.add(e.target);
-        });
-        
-        const nextEdges = prev.filter(e => {
-            if (e.source !== magnet.id && e.target !== magnet.id) return true;
-            const otherId = e.source === magnet.id ? e.target : e.source;
-            if (connectedNodeIds.has(otherId)) return false;
-            return true;
-        });
-
-        const isolatedNodes = nodes.filter(n => n.id !== magnet.id && !connectedNodeIds.has(n.id));
-        
-        isolatedNodes.forEach(n => {
-            const alreadyLinked = nextEdges.some(e => 
-                (e.source === magnet.id && e.target === n.id) || 
-                (e.target === magnet.id && e.source === n.id)
-            );
-            if (!alreadyLinked) {
-                nextEdges.push({ 
-                    id: `edge-${Math.random().toString(36).slice(2)}`, 
-                    source: magnet.id, 
-                    target: n.id 
-                });
-            }
-        });
-        return nextEdges;
-    });
-    
-    const targetTx = (window.innerWidth / 2) - (magnet.x * view.scale);
-    const targetTy = (window.innerHeight / 2) - (magnet.y * view.scale);
-    const startTx = view.translateX, startTy = view.translateY, startT = performance.now();
-    const animate = (time: number) => {
-        const t = Math.min((time - startT) / 500, 1);
-        const ease = t < .5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
-        setView({ scale: view.scale, translateX: startTx + (targetTx - startTx) * ease, translateY: startTy + (targetTy - startTy) * ease });
-        if (t < 1) requestAnimationFrame(animate);
-    };
-    requestAnimationFrame(animate);
-  };
-
-  const handleMagnetClick = (e: React.MouseEvent) => {
-      e.stopPropagation(); setHasInteracted(true);
-      if (hasMagnet) {
-          handleCaptureAndLocate();
+          const action = checkLinkAction(sources, targetId);
+          
+          if (action === 'unlink') {
+              setEdges(prev => prev.filter(e => {
+                  const isSourceMatch = sources.includes(e.source) && e.target === targetId;
+                  const isTargetMatch = sources.includes(e.target) && e.source === targetId;
+                  return !(isSourceMatch || isTargetMatch);
+              }));
+              playSound('unlink', isMuted);
+              triggerEffect(x, y, 'unlink');
+          } else {
+              const newEdges: Edge[] = [];
+              sources.forEach(sourceId => {
+                  const exists = edges.some(e => (e.source === sourceId && e.target === targetId) || (e.source === targetId && e.target === sourceId));
+                  if (!exists) {
+                      newEdges.push({
+                          id: Math.random().toString(36).slice(2),
+                          source: sourceId,
+                          target: targetId
+                      });
+                  }
+              });
+              setEdges(prev => [...prev, ...newEdges]);
+              playSound('link', isMuted);
+              triggerEffect(x, y, 'link');
+          }
       } else {
-          const cx = (window.innerWidth / 2 - view.translateX) / view.scale;
-          const cy = (window.innerHeight / 2 - view.translateY) / view.scale;
-          spawnMagnetNode(cx, cy);
+          const newNodeId = Math.random().toString(36).slice(2);
+          const newNode: GraphNode = {
+              id: newNodeId,
+              text: t.defaultNode,
+              x, 
+              y,
+              color: COLORS[0],
+              shape: defaultShape,
+              dimensions: { ...DEFAULT_DIMENSIONS },
+              vx: 0, 
+              vy: 0
+          };
+          
+          const newEdges = sources.map(sourceId => ({
+              id: Math.random().toString(36).slice(2),
+              source: sourceId,
+              target: newNodeId
+          }));
+
+          setNodes(prev => [...prev, newNode]);
+          setEdges(prev => [...prev, ...newEdges]);
+          setSelectedNodeIds(new Set([newNodeId]));
+          setEditingNodeId(newNodeId);
+          playSound('pop', isMuted);
+          triggerEffect(x, y, 'create');
+      }
+  };
+
+  const handleDoubleClick = (e: React.MouseEvent) => {
+      if ((e.target as HTMLElement).closest('button') || 
+          (e.target as HTMLElement).closest('.io-modal') ||
+          (e.target as HTMLElement).closest('.physics-panel') ||
+          (e.target as HTMLElement).closest('.help-modal')) return;
+
+      const { x, y } = screenToCanvas(e.clientX, e.clientY);
+      const clickedNode = getNodeAt(x, y);
+
+      if (clickedNode) {
+          setEditingNodeId(clickedNode.id);
+          setSelectedNodeIds(new Set([clickedNode.id]));
+      } else {
+          syncSimulationToState();
+          saveHistory();
+          const newNodeId = Math.random().toString(36).slice(2);
+          const newNode: GraphNode = {
+              id: newNodeId,
+              text: t.defaultNode,
+              x, 
+              y,
+              color: COLORS[0],
+              shape: defaultShape,
+              dimensions: { ...DEFAULT_DIMENSIONS },
+              vx: 0, 
+              vy: 0
+          };
+          setNodes(prev => [...prev, newNode]);
+          setEditingNodeId(newNodeId);
+          setSelectedNodeIds(new Set([newNodeId]));
+          playSound('pop', isMuted);
+          triggerEffect(x, y, 'create');
+      }
+  };
+
+  const handleMagnetClick = () => {
+      syncSimulationToState();
+      
+      if (hasMagnet) {
+          const magnet = nodes.find(n => n.type === 'magnet');
+          if (magnet) {
+              setView(prev => {
+                  const newTx = (window.innerWidth / 2) - (magnet.x * prev.scale);
+                  const newTy = (window.innerHeight / 2) - (magnet.y * prev.scale);
+                  return { ...prev, translateX: newTx, translateY: newTy };
+              });
+              
+              simulationNodes.current.forEach(n => {
+                  if (n.type !== 'magnet' && !n.pinned) {
+                      const dx = magnet.x - n.x;
+                      const dy = magnet.y - n.y;
+                      const dist = Math.sqrt(dx*dx + dy*dy);
+                      if (dist > 100) { 
+                           const strength = 15;
+                           n.vx += (dx / dist) * strength;
+                           n.vy += (dy / dist) * strength;
+                      }
+                  }
+              });
+              playSound('click', isMuted);
+          }
+      } else {
+          saveHistory();
+          const { x, y } = screenToCanvas(window.innerWidth / 2, window.innerHeight / 2);
+          const magnetNode: GraphNode = {
+              id: Math.random().toString(36).slice(2),
+              text: t.magnetNode,
+              x, 
+              y,
+              type: 'magnet',
+              shape: 'circle',
+              dimensions: { ...DEFAULT_DIMENSIONS, circleRadius: 60 },
+              vx: 0, 
+              vy: 0,
+              pinned: false
+          };
+          setNodes(prev => [...prev, magnetNode]);
+          playSound('pop', isMuted);
       }
   };
 
   const handleResetView = () => {
-      setHasInteracted(true);
-      playSound('click', isMuted);
-      performFitView(simulationNodes.current);
+      syncSimulationToState();
+      performFitView(nodes);
   };
 
-  // --- Event Handlers ---
-  const handleDoubleClick = (e: React.MouseEvent) => {
-     setHasInteracted(true);
-     const { x, y } = screenToCanvas(e.clientX, e.clientY);
-     const node = getNodeAt(x, y);
-     const edge = getEdgeAt(x, y); 
-     
-     if (node) {
-         if (node.type === 'magnet') {
-             handleCaptureAndLocate();
-         } else {
-             setEditingNodeId(node.id); 
-             setContextMenu(null); 
-             playSound('click', isMuted);
-         }
-     } else if (edge) {
-         setEditingEdgeId(edge.id);
-         setContextMenu(null);
-         playSound('click', isMuted);
-     } else {
-        syncSimulationToState();
-        saveHistory();
-        const newNodeId = Math.random().toString(36).slice(2);
-        const newNode: GraphNode = {
-          id: newNodeId, text: t.defaultNode, x: x, y: y, color: COLORS[0], 
-          shape: defaultShape, dimensions: { ...DEFAULT_DIMENSIONS }, vx: 0, vy: 0
-        };
-        playSound('pop', isMuted);
-        triggerEffect(x, y, 'create');
-        setNodes(prev => [...prev, newNode]);
-        setEditingNodeId(newNodeId);
-        setSelectedNodeIds(new Set([newNodeId]));
-     }
+  const toggleShape = (nodeId: string) => {
+      syncSimulationToState();
+      saveHistory();
+      setNodes(prev => prev.map(n => {
+          if (n.id === nodeId) {
+              const newShape = n.shape === 'circle' ? 'rectangle' : 'circle';
+              return { ...n, shape: newShape };
+          }
+          return n;
+      }));
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -1567,6 +1602,7 @@ const App: React.FC = () => {
     prevCursorRef.current = { x: e.clientX, y: e.clientY, time: Date.now() };
 
     if (e.button === 1) { dragRef.current.mode = 'pan'; return; }
+    
     if (e.button === 2) {
       if (clickedNode) {
         dragRef.current.mode = 'link_create';
@@ -1575,9 +1611,13 @@ const App: React.FC = () => {
         dragRef.current.linkSources = sources;
         setDragEdges(sources.map(id => ({ sourceId: id, x, y })));
         playSound('click', isMuted);
+      } else {
+        // Right click empty space
+        dragRef.current.mode = null; // Will trigger create/context logic on mouse up
       }
       return;
     }
+
     if (e.button === 0) {
       if (clickedNode) {
         dragRef.current.mode = 'move_nodes';
@@ -1815,6 +1855,7 @@ const App: React.FC = () => {
             setHoveredEdgeId(edge.id); 
             handleLinkAction(null, cx, cy);
         } else {
+          // Right click on empty space -> Create Node
           syncSimulationToState();
           saveHistory();
           const newNodeId = Math.random().toString(36).slice(2);
@@ -1840,11 +1881,23 @@ const App: React.FC = () => {
   const handleWheel = (e: React.WheelEvent) => {
     if (ioModalOpen) return;
     setHasInteracted(true);
+    
+    // Direct Zoom logic
     const delta = -e.deltaY * ZOOM_SENSITIVITY;
     const newScale = Math.min(Math.max(view.scale * (1 + delta), MIN_ZOOM), MAX_ZOOM);
-    const { x, y } = screenToCanvas(e.clientX, e.clientY);
-    const newTx = e.clientX - x * newScale;
-    const newTy = e.clientY - y * newScale;
+    
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    // Compute new translate to keep mouse pointer fixed
+    const dx = x - view.translateX;
+    const dy = y - view.translateY;
+    const newTx = x - (dx / view.scale) * newScale;
+    const newTy = y - (dy / view.scale) * newScale;
+    
     setView({ scale: newScale, translateX: newTx, translateY: newTy });
     setContextMenu(null);
   };
@@ -2400,6 +2453,16 @@ const App: React.FC = () => {
           </div>
       )}
 
+      {/* Thinking Indicator */}
+      {isThinking && (
+          <div className="fixed top-8 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-top-2">
+              <div className="px-5 py-2.5 bg-white/90 backdrop-blur rounded-full shadow-xl border border-teal-100 flex items-center gap-3 text-sm font-medium text-teal-700">
+                  <Loader2 size={16} className="animate-spin text-teal-500" />
+                  <span className="tracking-wide">{t.canvas.thinking}</span>
+              </div>
+          </div>
+      )}
+
       {/* NEW TRASH DESIGN: Corner Gradient Region */}
       {(isDraggingNodes || dragRef.current.mode === 'move_nodes') && (
         <div ref={trashRef} className={`fixed bottom-0 right-0 z-0 transition-all duration-300 pointer-events-none rounded-tl-full ${isOverTrash ? 'opacity-100' : 'opacity-30'}`} style={{ width: '400px', height: '400px', background: `radial-gradient(circle at 100% 100%, ${isOverTrash ? '#fecaca' : '#cbd5e1'} 0%, transparent 60%)` }}>
@@ -2461,6 +2524,19 @@ const App: React.FC = () => {
                    ))}
                </div>
            </div>
+
+           {/* BRAINSTORM BUTTON */}
+           <button 
+                className="group w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-white/50 flex items-center gap-3 transition-all active:scale-95" 
+                onClick={() => { if (contextMenu.nodeId) handleBrainstorm(contextMenu.nodeId); }}
+            >
+               <div className="p-1.5 rounded-lg bg-indigo-50 text-indigo-600 group-hover:bg-indigo-100 transition-colors">
+                   <Sparkles size={16} />
+               </div>
+               <span className="font-medium">{t.context.brainstorm}</span>
+           </button>
+
+           <div className="h-px bg-slate-200/50 mx-4 my-1"/>
 
            <button className="group w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-white/50 flex items-center gap-3 transition-all active:scale-95" onClick={() => { if (contextMenu.nodeId) toggleShape(contextMenu.nodeId); }}>
                <div className="p-1.5 rounded-lg bg-teal-50 text-teal-600 group-hover:bg-teal-100 transition-colors">
