@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useCallback, useEffect, useLayoutEffect } from 'react';
 import { Node as GraphNode, Edge, ViewState, ContextMenuState } from './types';
 import { COLORS, INITIAL_NODES, INITIAL_EDGES, ZOOM_SENSITIVITY, MIN_ZOOM, MAX_ZOOM, DEFAULT_DIMENSIONS, DEFAULT_PHYSICS } from './constants';
@@ -1498,11 +1499,12 @@ const App: React.FC = () => {
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    initAudio(); 
-    setHasInteracted(true);
     if ((e.target as HTMLElement).closest('.physics-panel') || (e.target as HTMLElement).closest('.io-modal') || (e.target as HTMLElement).closest('.help-modal') || (e.target as HTMLElement).closest('.toolbar-container')) return; 
     if ((e.target as HTMLElement).isContentEditable) return;
     if (editingEdgeId && (e.target as HTMLElement).tagName === 'INPUT') return; 
+
+    initAudio(); 
+    setHasInteracted(true);
 
     if (editingNodeId) {
         if (editRef.current) {
@@ -2219,347 +2221,281 @@ const App: React.FC = () => {
       {!isZenMode && showPhysicsSettings && (
         <div className="physics-panel fixed top-6 right-6 w-64 bg-white/90 backdrop-blur shadow-xl border border-slate-200 rounded-xl p-4 animate-in z-50">
           <div className="flex items-center justify-between mb-4">
-             <h3 className="text-sm font-bold text-slate-700">{t.physics.title}</h3>
-             <button onClick={() => setShowPhysicsSettings(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
-               <X size={16} />
-             </button>
+             <h3 className="text-sm font-bold text-slate-700 flex items-center gap-2"><Wind size={16} className="text-teal-500"/> {t.physics.title}</h3>
+             <button onClick={() => setShowPhysicsSettings(false)} className="text-slate-400 hover:text-slate-600"><X size={16}/></button>
           </div>
           <div className="space-y-4">
-            {[
-              { key: 'repulsion', label: t.physics.repulsion },
-              { key: 'length', label: t.physics.length },
-              { key: 'stiffness', label: t.physics.stiffness },
-              { key: 'gravity', label: t.physics.gravity },
-              { key: 'friction', label: t.physics.friction }
-            ].map(({ key, label }) => (
-              <div key={key} className="space-y-1">
-                <div className="flex justify-between text-xs text-slate-500 font-medium">
-                  <span>{label}</span>
-                  <span>{physicsParams[key as keyof typeof physicsParams]}%</span>
-                </div>
-                <input 
-                  type="range" min="0" max="100" step="1"
-                  value={physicsParams[key as keyof typeof physicsParams]}
-                  onChange={(e) => setPhysicsParams(p => ({ ...p, [key]: Number(e.target.value) }))}
-                  className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-teal-600 hover:accent-teal-500 transition-all"
-                />
-              </div>
-            ))}
+             <div className="space-y-1"><div className="flex justify-between text-xs text-slate-500"><span>{t.physics.repulsion}</span><span>{physicsParams.repulsion}</span></div><input type="range" min="0" max="100" value={physicsParams.repulsion} onChange={(e) => setPhysicsParams(p => ({...p, repulsion: Number(e.target.value)}))} className="w-full accent-teal-500 h-1 bg-slate-100 rounded-lg appearance-none cursor-pointer"/></div>
+             <div className="space-y-1"><div className="flex justify-between text-xs text-slate-500"><span>{t.physics.length}</span><span>{physicsParams.length}</span></div><input type="range" min="0" max="100" value={physicsParams.length} onChange={(e) => setPhysicsParams(p => ({...p, length: Number(e.target.value)}))} className="w-full accent-teal-500 h-1 bg-slate-100 rounded-lg appearance-none cursor-pointer"/></div>
+             <div className="space-y-1"><div className="flex justify-between text-xs text-slate-500"><span>{t.physics.stiffness}</span><span>{physicsParams.stiffness}</span></div><input type="range" min="0" max="100" value={physicsParams.stiffness} onChange={(e) => setPhysicsParams(p => ({...p, stiffness: Number(e.target.value)}))} className="w-full accent-teal-500 h-1 bg-slate-100 rounded-lg appearance-none cursor-pointer"/></div>
+             <div className="space-y-1"><div className="flex justify-between text-xs text-slate-500"><span>{t.physics.gravity}</span><span>{physicsParams.gravity}</span></div><input type="range" min="0" max="100" value={physicsParams.gravity} onChange={(e) => setPhysicsParams(p => ({...p, gravity: Number(e.target.value)}))} className="w-full accent-teal-500 h-1 bg-slate-100 rounded-lg appearance-none cursor-pointer"/></div>
+             <div className="space-y-1"><div className="flex justify-between text-xs text-slate-500"><span>{t.physics.friction}</span><span>{physicsParams.friction}</span></div><input type="range" min="0" max="100" value={physicsParams.friction} onChange={(e) => setPhysicsParams(p => ({...p, friction: Number(e.target.value)}))} className="w-full accent-teal-500 h-1 bg-slate-100 rounded-lg appearance-none cursor-pointer"/></div>
           </div>
         </div>
+      )}
+
+      {/* Help / Instruction Manual Modal */}
+      {helpModalOpen && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+              <div className="absolute inset-0 bg-slate-900/20 backdrop-blur-sm" onClick={() => setHelpModalOpen(false)} />
+              <div className="help-modal relative bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-100 w-full max-w-2xl animate-in overflow-hidden">
+                  <div className="flex items-center justify-between p-6 border-b border-slate-100">
+                      <h2 className="text-xl font-light text-slate-800 tracking-widest flex items-center gap-3">
+                          <BookOpen size={24} className="text-teal-600"/> 
+                          {t.help.title}
+                      </h2>
+                      <button onClick={() => setHelpModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={24}/></button>
+                  </div>
+                  <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-10">
+                      <div className="space-y-6">
+                          <div className="space-y-3">
+                              <h3 className="text-sm font-bold text-teal-600 uppercase tracking-widest mb-4">{t.help.basic}</h3>
+                              <div className="flex items-start gap-3 text-slate-600">
+                                  <div className="mt-1 p-1 bg-slate-100 rounded"><MousePointer2 size={16}/></div>
+                                  <div>
+                                      <p className="font-medium">{t.help.drag}</p>
+                                      <p className="text-xs text-slate-400 mt-0.5">{t.help.dragDesc}</p>
+                                  </div>
+                              </div>
+                              <div className="flex items-start gap-3 text-slate-600">
+                                  <div className="mt-1 p-1 bg-slate-100 rounded"><Plus size={16}/></div>
+                                  <div>
+                                      <p className="font-medium">{t.help.create}</p>
+                                      <p className="text-xs text-slate-400 mt-0.5">{t.help.createDesc}</p>
+                                  </div>
+                              </div>
+                              <div className="flex items-start gap-3 text-slate-600">
+                                  <div className="mt-1 p-1 bg-slate-100 rounded"><Move size={16}/></div>
+                                  <div>
+                                      <p className="font-medium">{t.help.right}</p>
+                                      <p className="text-xs text-slate-400 mt-0.5">{t.help.rightDesc}</p>
+                                  </div>
+                              </div>
+                              <div className="flex items-start gap-3 text-slate-600">
+                                  <div className="mt-1 p-1 bg-slate-100 rounded"><Type size={16}/></div>
+                                  <div>
+                                      <p className="font-medium">{t.help.edit}</p>
+                                      <p className="text-xs text-slate-400 mt-0.5">{t.help.editDesc}</p>
+                                  </div>
+                              </div>
+                          </div>
+                      </div>
+                      
+                      <div className="space-y-6">
+                          <div className="space-y-3">
+                              <h3 className="text-sm font-bold text-teal-600 uppercase tracking-widest mb-4">{t.help.advanced}</h3>
+                              <div className="flex items-start gap-3 text-slate-600">
+                                  <div className="mt-1 p-1 bg-slate-100 rounded"><ImageIcon size={16}/></div>
+                                  <div>
+                                      <p className="font-medium">{t.help.paste}</p>
+                                      <p className="text-xs text-slate-400 mt-0.5">{t.help.pasteDesc}</p>
+                                  </div>
+                              </div>
+                              <div className="flex items-start gap-3 text-slate-600">
+                                  <div className="mt-1 p-1 bg-slate-100 rounded"><Merge size={16}/></div>
+                                  <div>
+                                      <p className="font-medium">{t.help.merge}</p>
+                                      <p className="text-xs text-slate-400 mt-0.5">{t.help.mergeDesc}</p>
+                                  </div>
+                              </div>
+                              <div className="flex items-start gap-3 text-slate-600">
+                                  <div className="mt-1 p-1 bg-slate-100 rounded"><Trash2 size={16}/></div>
+                                  <div>
+                                      <p className="font-medium">{t.help.trash}</p>
+                                      <p className="text-xs text-slate-400 mt-0.5">{t.help.trashDesc}</p>
+                                  </div>
+                              </div>
+                              <div className="flex items-start gap-3 text-slate-600">
+                                  <div className="mt-1 p-1 bg-slate-100 rounded"><Magnet size={16}/></div>
+                                  <div>
+                                      <p className="font-medium">{t.help.magnet}</p>
+                                      <p className="text-xs text-slate-400 mt-0.5">{t.help.magnetDesc}</p>
+                                  </div>
+                              </div>
+                          </div>
+                      </div>
+                  </div>
+                  <div className="bg-slate-50 p-6 border-t border-slate-100">
+                       <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Keyboard size={14}/> {t.help.shortcuts}</h3>
+                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs font-mono text-slate-600">
+                           <div className="flex items-center justify-between bg-white px-3 py-2 rounded border border-slate-200"><span>{t.help.undoKey}</span> <span className="text-slate-400">Ctrl+Z</span></div>
+                           <div className="flex items-center justify-between bg-white px-3 py-2 rounded border border-slate-200"><span>{t.help.redoKey}</span> <span className="text-slate-400">Ctrl+Y</span></div>
+                           <div className="flex items-center justify-between bg-white px-3 py-2 rounded border border-slate-200"><span>{t.help.confirmKey}</span> <span className="text-slate-400">Enter</span></div>
+                           <div className="flex items-center justify-between bg-white px-3 py-2 rounded border border-slate-200"><span>{t.help.newlineKey}</span> <span className="text-slate-400">Shift+Ent</span></div>
+                       </div>
+                  </div>
+              </div>
+          </div>
       )}
 
       {/* Main Toolbar */}
-      {!isZenMode && (
-        <div className="toolbar-container fixed bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-3 p-2 bg-white/90 backdrop-blur-md border border-slate-200/60 shadow-2xl rounded-2xl z-40 transition-all duration-300 hover:shadow-teal-500/10 hover:-translate-y-1">
-          
-          <div className="flex items-center gap-1 pr-3 border-r border-slate-200">
-             <button onClick={handleUndo} className="p-2 text-slate-500 hover:text-teal-600 hover:bg-teal-50 rounded-xl transition-all disabled:opacity-30" disabled={past.length === 0} title={t.toolbar.undo}>
-                <Undo2 size={20} />
-             </button>
-             <button onClick={handleRedo} className="p-2 text-slate-500 hover:text-teal-600 hover:bg-teal-50 rounded-xl transition-all disabled:opacity-30" disabled={future.length === 0} title={t.toolbar.redo}>
-                <Redo2 size={20} />
-             </button>
-          </div>
-
-          <div className="flex items-center gap-2 pr-3 border-r border-slate-200">
-             <button onClick={() => setDefaultShape(s => s === 'circle' ? 'rectangle' : 'circle')} className="p-2 text-slate-600 hover:text-teal-600 hover:bg-teal-50 rounded-xl transition-all" title={defaultShape === 'circle' ? t.toolbar.shapeCircle : t.toolbar.shapeRect}>
-                {defaultShape === 'circle' ? <Circle size={20} /> : <Square size={20} />}
-             </button>
+      {!isZenMode ? (
+          <div className="toolbar-container fixed bottom-8 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur shadow-2xl border border-slate-200 rounded-2xl p-2 flex items-center gap-1 z-50 transition-all duration-300">
+             {/* Group 1: History */}
+             <button className={`p-3 rounded-xl transition-all ${past.length > 0 ? 'text-slate-600 hover:bg-slate-50' : 'text-slate-300 cursor-not-allowed'}`} onClick={handleUndo} title={t.toolbar.undo} disabled={past.length === 0}><Undo2 size={20} /></button>
+             <button className={`p-3 rounded-xl transition-all ${future.length > 0 ? 'text-slate-600 hover:bg-slate-50' : 'text-slate-300 cursor-not-allowed'}`} onClick={handleRedo} title={t.toolbar.redo} disabled={future.length === 0}><Redo2 size={20} /></button>
              
-             <button onClick={handleMagnetClick} className={`p-2 rounded-xl transition-all relative group ${hasMagnet ? 'text-amber-500 hover:bg-amber-50' : 'text-slate-500 hover:text-teal-600 hover:bg-teal-50'}`} title={hasMagnet ? t.toolbar.magnetActive : t.toolbar.magnetInactive}>
-                <Magnet size={20} className={hasMagnet ? 'animate-pulse' : ''} />
-                {hasMagnet && <span className="absolute top-1 right-1 w-2 h-2 bg-amber-500 rounded-full animate-ping" />}
-             </button>
+             <div className="w-px h-8 bg-slate-100 mx-1" />
              
-             <button onClick={() => setIsFloating(!isFloating)} className={`p-2 rounded-xl transition-all ${!isFloating ? 'text-sky-500 bg-sky-50' : 'text-slate-500 hover:text-teal-600 hover:bg-teal-50'}`} title={!isFloating ? t.toolbar.frozen : t.toolbar.floating}>
-                <Snowflake size={20} />
-             </button>
+             {/* Group 2: Simulation/Tools */}
+             <button className={`p-3 rounded-xl transition-all ${'bg-teal-50 text-teal-600 shadow-sm'}`} onClick={() => setDefaultShape(prev => prev === 'circle' ? 'rectangle' : 'circle')} title={defaultShape === 'circle' ? t.toolbar.shapeCircle : t.toolbar.shapeRect}> {defaultShape === 'circle' ? <Circle size={20} /> : <Square size={20} />} </button>
+             <button className={`p-3 rounded-xl transition-all ${hasMagnet ? 'bg-amber-100 text-amber-600 shadow-sm ring-2 ring-amber-200 ring-offset-1' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`} onClick={handleMagnetClick} title={hasMagnet ? t.toolbar.magnetActive : t.toolbar.magnetInactive}><Magnet size={20} className={hasMagnet ? "" : ""}/></button>
+             <button className={`p-3 rounded-xl transition-all ${!isFloating ? 'bg-teal-50 text-teal-600 shadow-sm ring-1 ring-teal-200' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`} onClick={() => setIsFloating(!isFloating)} title={!isFloating ? t.toolbar.frozen : t.toolbar.floating}><Snowflake size={20} /></button>
+             <button className={`p-3 rounded-xl transition-all ${showPhysicsSettings ? 'bg-slate-100 text-slate-700' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`} onClick={() => setShowPhysicsSettings(!showPhysicsSettings)} title={t.toolbar.physics}><Settings2 size={20} /></button>
 
-             <button onClick={() => setShowPhysicsSettings(!showPhysicsSettings)} className={`p-2 rounded-xl transition-all ${showPhysicsSettings ? 'text-teal-600 bg-teal-50' : 'text-slate-500 hover:text-teal-600 hover:bg-teal-50'}`} title={t.toolbar.physics}>
-                <Settings2 size={20} />
+             <div className="w-px h-8 bg-slate-100 mx-1" />
+
+             {/* Group 3: View/IO */}
+             <button className="p-3 rounded-xl text-slate-400 hover:bg-slate-50 hover:text-slate-600 transition-all" onClick={handleResetView} title={t.toolbar.fitView}><Maximize size={20} /></button>
+             <button className={`p-3 rounded-xl transition-all text-slate-400 hover:bg-slate-50 hover:text-indigo-600`} onClick={() => setIsZenMode(true)} title={t.toolbar.zenMode}><Eye size={20} /></button>
+             <button className={`p-3 rounded-xl transition-all ${ioModalOpen ? 'bg-slate-100 text-teal-600' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`} onClick={handleOpenExport} title={t.toolbar.io}><Code size={20}/></button>
+
+             <div className="w-px h-8 bg-slate-100 mx-1" />
+
+             {/* Group 4: System */}
+             <button className={`p-3 rounded-xl transition-all ${isMuted ? 'text-slate-400' : 'text-slate-600 hover:bg-slate-50'}`} onClick={() => setIsMuted(!isMuted)} title={isMuted ? t.toolbar.muted : t.toolbar.soundOn}>{isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}</button>
+             <button className={`p-3 rounded-xl transition-all ${helpModalOpen ? 'bg-teal-50 text-teal-600' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`} onClick={() => setHelpModalOpen(true)} title={t.toolbar.help}><BookOpen size={20}/></button>
+             <button className="px-2 py-3 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-50 hover:text-teal-600 transition-all flex flex-col items-center justify-center gap-0.5" onClick={toggleLang} title={t.toolbar.lang}>
+                 <span>{lang === 'zh' ? '中' : 'En'}</span>
              </button>
           </div>
-
-          <div className="flex items-center gap-1">
-             <button onClick={() => setIsZenMode(true)} className="p-2 text-slate-500 hover:text-purple-600 hover:bg-purple-50 rounded-xl transition-all" title={t.toolbar.zenMode}>
-                <Maximize size={20} />
-             </button>
-             <button onClick={handleOpenExport} className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all" title={t.toolbar.io}>
-                <Download size={20} />
-             </button>
-             <button onClick={() => setIsMuted(!isMuted)} className="p-2 text-slate-500 hover:text-pink-600 hover:bg-pink-50 rounded-xl transition-all" title={isMuted ? t.toolbar.muted : t.toolbar.soundOn}>
-                {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
-             </button>
-             <button onClick={() => setHelpModalOpen(true)} className="p-2 text-slate-500 hover:text-orange-600 hover:bg-orange-50 rounded-xl transition-all" title={t.toolbar.help}>
-                <BookOpen size={20} />
-             </button>
-             <button onClick={toggleLang} className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-all font-bold text-xs w-9 h-9 flex items-center justify-center" title={t.toolbar.lang}>
-                {lang === 'zh' ? 'EN' : '中'}
-             </button>
-          </div>
-        </div>
-      )}
-
-      {/* Zen Mode Exit Button */}
-      {isZenMode && (
-        <button onClick={() => setIsZenMode(false)} className="fixed top-6 right-6 p-3 bg-white/10 backdrop-blur hover:bg-white/20 text-white rounded-full transition-all z-50">
-           <Maximize size={24} className="text-white opacity-60 hover:opacity-100" />
-        </button>
-      )}
-
-      {/* Selection Box */}
-      {selectionBox && (
-          <div 
-             className="fixed border-2 border-teal-500 bg-teal-500/20 pointer-events-none z-30 rounded-lg"
-             style={{ 
-                 left: selectionBox.x, 
-                 top: selectionBox.y, 
-                 width: selectionBox.w, 
-                 height: selectionBox.h 
-             }}
-          />
-      )}
-
-      {/* Tooltip */}
-      {tooltipContent && (
-        <div 
-          ref={tooltipRef}
-          className={`fixed px-3 py-1.5 rounded-full text-xs font-bold text-white shadow-xl pointer-events-none z-50 flex items-center gap-2 transition-transform duration-75 ease-out will-change-transform ${
-            tooltipContent.type === 'delete' ? 'bg-red-500' : 
-            tooltipContent.type === 'link' ? 'bg-teal-500' :
-            tooltipContent.type === 'unlink' ? 'bg-orange-500' :
-            tooltipContent.type === 'merge' ? 'bg-amber-500' :
-            'bg-slate-800'
-          }`}
-          style={{ top: 0, left: 0 }}
-        >
-          {tooltipContent.type === 'link' && <LinkIcon size={12} />}
-          {tooltipContent.type === 'unlink' && <Unlink size={12} />}
-          {tooltipContent.type === 'create' && <Plus size={12} />}
-          {tooltipContent.type === 'merge' && <Merge size={12} />}
-          {tooltipContent.type === 'split' && <Scissors size={12} />}
-          {tooltipContent.text}
-        </div>
-      )}
-
-      {/* Context Menu */}
-      {contextMenu && contextMenu.visible && (
-        <div 
-           className="fixed bg-white shadow-2xl border border-slate-100 rounded-xl p-2 z-50 min-w-[160px] animate-in slide-in-from-top-2 duration-200"
-           style={{ top: contextMenu.y, left: contextMenu.x }}
-           onClick={(e) => e.stopPropagation()}
-        >
-           <div className="flex gap-1 mb-2 p-1">
-              {COLORS.map(c => (
-                 <button 
-                    key={c} 
-                    className="w-5 h-5 rounded-full hover:scale-110 transition-transform shadow-sm ring-1 ring-slate-100" 
-                    style={{ backgroundColor: c }}
-                    onClick={() => updateNodeColor(contextMenu.nodeId!, c)}
-                 />
-              ))}
+      ) : (
+          /* ZEN MODE EXIT TRIGGER AREA */
+          <div className="fixed bottom-0 left-0 w-full h-32 z-50 flex justify-center items-end pb-8 group">
+              {/* Visual Hint for Zen Mode Recovery: A tiny, barely visible gradient at bottom */}
+              <div className="absolute bottom-0 left-0 w-full h-2 bg-gradient-to-t from-slate-200/50 to-transparent pointer-events-none opacity-50 group-hover:opacity-0 transition-opacity duration-500" />
+              
+              {/* Invisible hover area above, visible button on hover */}
               <button 
-                 className="w-5 h-5 rounded-full bg-white border border-slate-300 flex items-center justify-center hover:bg-slate-50"
-                 onClick={() => updateNodeColor(contextMenu.nodeId!, '#fff')}
-                 title={t.context.defaultWhite}
+                className="px-6 py-2 rounded-full bg-white/80 backdrop-blur-md shadow-lg border border-slate-200 text-slate-500 hover:text-indigo-600 hover:bg-white transition-all duration-500 translate-y-20 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 flex items-center gap-2" 
+                onClick={() => setIsZenMode(false)}
               >
-                  <div className="w-full h-px bg-slate-300 rotate-45" />
+                  <EyeOff size={18} strokeWidth={1.5} />
+                  <span className="font-light text-sm tracking-widest">{t.toolbar.exitZen}</span>
               </button>
-           </div>
-           
-           <div className="h-px bg-slate-100 my-1" />
-           
-           <button onClick={() => toggleShape(contextMenu.nodeId!)} className="w-full text-left px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 hover:text-teal-600 rounded-lg flex items-center gap-2 transition-colors">
-              <Square size={14} />
-              {t.context.toggleShape}
-           </button>
-
-           <button 
-             onClick={() => {
-                 const n = nodes.find(node => node.id === contextMenu.nodeId);
-                 if (n) {
-                    saveHistory();
-                    setNodes(prev => prev.map(node => node.id === contextMenu.nodeId ? { ...node, pinned: !node.pinned } : node));
-                    setContextMenu(null);
-                 }
-             }} 
-             className="w-full text-left px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 hover:text-teal-600 rounded-lg flex items-center gap-2 transition-colors"
-           >
-              {nodes.find(n => n.id === contextMenu.nodeId)?.pinned ? <PinOff size={14} /> : <Pin size={14} />}
-              {nodes.find(n => n.id === contextMenu.nodeId)?.pinned ? t.context.unpin : t.context.pin}
-           </button>
-
-           <div className="h-px bg-slate-100 my-1" />
-           
-           <button onClick={() => { deleteNodes(new Set([contextMenu.nodeId!])); setContextMenu(null); }} className="w-full text-left px-3 py-2 text-sm text-red-500 hover:bg-red-50 rounded-lg flex items-center gap-2 transition-colors">
-              <Trash2 size={14} />
-              {t.context.delete}
-           </button>
-        </div>
+          </div>
+      )}
+      
+      {selectionBox && (
+        <div className="absolute border-2 border-teal-500 bg-teal-500/10 pointer-events-none z-50" style={{ left: selectionBox.x, top: selectionBox.y, width: selectionBox.w, height: selectionBox.h }} />
       )}
 
+      {/* Zero Latency Tooltip via Ref */}
+      {!isZenMode && (
+          <div 
+            ref={tooltipRef}
+            className={`fixed pointer-events-none z-50 px-3 py-1.5 rounded-full bg-white/90 backdrop-blur shadow-sm border border-slate-100 text-slate-600 text-xs font-medium flex items-center gap-2 will-change-transform ${!tooltipContent ? 'opacity-0' : 'opacity-100'}`}
+            style={{ top: 0, left: 0 }} // Position set by JS directly
+          >
+            {tooltipContent && (
+                <>
+                    {tooltipContent.type === 'create' && <Plus size={14} className="text-teal-500"/>}
+                    {tooltipContent.type === 'link' && <LinkIcon size={14} className="text-teal-500"/>}
+                    {tooltipContent.type === 'unlink' && <Unlink size={14} className="text-red-500"/>}
+                    {tooltipContent.type === 'split' && <Scissors size={14} className="text-amber-500"/>}
+                    {tooltipContent.type === 'merge' && <Merge size={14} className="text-amber-500"/>}
+                    {tooltipContent.text}
+                </>
+            )}
+          </div>
+      )}
+
+      {/* NEW TRASH DESIGN: Corner Gradient Region */}
+      {(isDraggingNodes || dragRef.current.mode === 'move_nodes') && (
+        <div ref={trashRef} className={`fixed bottom-0 right-0 z-0 transition-all duration-300 pointer-events-none rounded-tl-full ${isOverTrash ? 'opacity-100' : 'opacity-30'}`} style={{ width: '400px', height: '400px', background: `radial-gradient(circle at 100% 100%, ${isOverTrash ? '#fecaca' : '#cbd5e1'} 0%, transparent 60%)` }}>
+            <div className={`absolute bottom-12 right-12 transition-all duration-300 flex flex-col items-center gap-2 ${isOverTrash ? 'scale-125 text-red-500' : 'scale-100 text-slate-400'}`}>
+              <Trash2 size={40} strokeWidth={isOverTrash ? 2 : 1.5} className={isOverTrash ? 'animate-bounce' : ''}/>
+              <span className={`text-xs font-medium tracking-widest uppercase transition-opacity ${isOverTrash ? 'opacity-100' : 'opacity-0'}`}>{t.canvas.deleteZone}</span>
+            </div>
+        </div>
+      )}
+      
       {/* IO Modal */}
       {ioModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in">
-           <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl p-6 flex flex-col gap-4">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-                 <div className="flex gap-4">
-                    <button onClick={() => setIoMode('export')} className={`text-sm font-bold px-3 py-1.5 rounded-lg transition-colors ${ioMode === 'export' ? 'bg-teal-50 text-teal-600' : 'text-slate-500 hover:bg-slate-50'}`}>
-                       {t.io.export}
-                    </button>
-                    <button onClick={() => setIoMode('import')} className={`text-sm font-bold px-3 py-1.5 rounded-lg transition-colors ${ioMode === 'import' ? 'bg-teal-50 text-teal-600' : 'text-slate-500 hover:bg-slate-50'}`}>
-                       {t.io.import}
-                    </button>
-                    <button onClick={handleExportImage} className="text-sm font-bold px-3 py-1.5 rounded-lg text-slate-500 hover:bg-slate-50 transition-colors flex items-center gap-2">
-                       <ImageIcon size={14} />
-                       {t.io.exportImg}
-                    </button>
-                 </div>
-                 <button onClick={() => setIoModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
-              </div>
-              
-              <div className="relative">
-                 <textarea 
-                    value={ioText}
-                    onChange={(e) => setIoText(e.target.value)}
-                    placeholder={ioMode === 'export' ? t.io.placeholderExport : t.io.placeholderImport}
-                    className="w-full h-64 p-4 rounded-xl bg-slate-50 border border-slate-200 text-sm font-mono text-slate-600 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 resize-none"
-                 />
-                 {ioMode === 'export' && (
-                     <button 
-                        onClick={handleCopyCode}
-                        className="absolute top-4 right-4 bg-white shadow-sm border border-slate-200 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:text-teal-600 flex items-center gap-2"
-                     >
-                        {copySuccess ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
-                        {t.io.copy}
-                     </button>
-                 )}
-              </div>
-
-              {ioMode === 'import' && (
-                  <div className="flex justify-between items-center bg-blue-50 p-3 rounded-lg border border-blue-100">
-                      <span className="text-xs text-blue-600 flex items-center gap-2">
-                          <BookOpen size={14} />
-                          {t.io.importHint}
-                      </span>
-                      <button 
-                          onClick={handleImportMermaid}
-                          className="bg-teal-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-teal-700 transition-all shadow-lg shadow-teal-500/30 active:scale-95"
-                      >
-                          {t.io.importBtn}
-                      </button>
-                  </div>
-              )}
-           </div>
-        </div>
-      )}
-
-      {/* Help Modal */}
-      {helpModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in" onClick={() => setHelpModalOpen(false)}>
-            <div className="bg-white w-full max-w-4xl rounded-3xl shadow-2xl p-8 overflow-hidden relative" onClick={e => e.stopPropagation()}>
-               <button onClick={() => setHelpModalOpen(false)} className="absolute top-6 right-6 text-slate-400 hover:text-slate-700 p-2 hover:bg-slate-100 rounded-full transition-all">
-                  <X size={24} />
-               </button>
-               
-               <h2 className="text-3xl font-light text-slate-800 mb-8 tracking-tight">{t.help.title}</h2>
-               
-               <div className="grid grid-cols-2 gap-12">
-                   <div>
-                       <h3 className="text-sm font-bold text-teal-600 uppercase tracking-wider mb-4 border-b border-teal-100 pb-2">{t.help.basic}</h3>
-                       <div className="space-y-6">
-                           <div className="flex gap-4 group">
-                               <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-500 group-hover:bg-teal-50 group-hover:text-teal-600 transition-colors">
-                                   <MousePointer2 size={24} />
-                               </div>
-                               <div>
-                                   <div className="font-bold text-slate-700">{t.help.drag}</div>
-                                   <div className="text-sm text-slate-500 leading-relaxed">{t.help.dragDesc}</div>
-                               </div>
-                           </div>
-                           <div className="flex gap-4 group">
-                               <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-500 group-hover:bg-teal-50 group-hover:text-teal-600 transition-colors">
-                                   <Plus size={24} />
-                               </div>
-                               <div>
-                                   <div className="font-bold text-slate-700">{t.help.create}</div>
-                                   <div className="text-sm text-slate-500 leading-relaxed">{t.help.createDesc}</div>
-                               </div>
-                           </div>
-                           <div className="flex gap-4 group">
-                               <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-500 group-hover:bg-teal-50 group-hover:text-teal-600 transition-colors">
-                                   <Mouse size={24} />
-                               </div>
-                               <div>
-                                   <div className="font-bold text-slate-700">{t.help.right}</div>
-                                   <div className="text-sm text-slate-500 leading-relaxed">{t.help.rightDesc}</div>
-                               </div>
-                           </div>
-                       </div>
-                   </div>
-
-                   <div>
-                       <h3 className="text-sm font-bold text-purple-600 uppercase tracking-wider mb-4 border-b border-purple-100 pb-2">{t.help.advanced}</h3>
-                       <div className="space-y-6">
-                           <div className="flex gap-4 group">
-                               <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-500 group-hover:bg-purple-50 group-hover:text-purple-600 transition-colors">
-                                   <ImageIcon size={24} />
-                               </div>
-                               <div>
-                                   <div className="font-bold text-slate-700">{t.help.paste}</div>
-                                   <div className="text-sm text-slate-500 leading-relaxed">{t.help.pasteDesc}</div>
-                               </div>
-                           </div>
-                           <div className="flex gap-4 group">
-                               <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-500 group-hover:bg-purple-50 group-hover:text-purple-600 transition-colors">
-                                   <Merge size={24} />
-                               </div>
-                               <div>
-                                   <div className="font-bold text-slate-700">{t.help.merge}</div>
-                                   <div className="text-sm text-slate-500 leading-relaxed">{t.help.mergeDesc}</div>
-                               </div>
-                           </div>
-                           <div className="flex gap-4 group">
-                               <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-500 group-hover:bg-purple-50 group-hover:text-purple-600 transition-colors">
-                                   <Magnet size={24} />
-                               </div>
-                               <div>
-                                   <div className="font-bold text-slate-700">{t.help.magnet}</div>
-                                   <div className="text-sm text-slate-500 leading-relaxed">{t.help.magnetDesc}</div>
-                               </div>
-                           </div>
-                       </div>
-                   </div>
-               </div>
-               
-               <div className="mt-8 pt-8 border-t border-slate-100 flex gap-4 text-xs text-slate-400">
-                   <div className="bg-slate-50 px-3 py-1 rounded border border-slate-100">Ctrl + Z : {t.help.undoKey}</div>
-                   <div className="bg-slate-50 px-3 py-1 rounded border border-slate-100">Ctrl + Y : {t.help.redoKey}</div>
-                   <div className="bg-slate-50 px-3 py-1 rounded border border-slate-100">Enter : {t.help.confirmKey}</div>
-                   <div className="bg-slate-50 px-3 py-1 rounded border border-slate-100">Shift + Enter : {t.help.newlineKey}</div>
-               </div>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center">
+            <div className="absolute inset-0 bg-slate-900/30 backdrop-blur-sm" onClick={() => setIoModalOpen(false)} />
+            <div className="io-modal relative bg-white rounded-xl shadow-2xl border border-slate-200 w-[500px] animate-in flex flex-col overflow-hidden" style={{ transformOrigin: 'center' }}>
+                <div className="flex border-b border-slate-100">
+                    <button onClick={() => { setIoMode('export'); handleOpenExport(); }} className={`flex-1 py-4 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${ioMode === 'export' ? 'text-teal-600 bg-teal-50/50 border-b-2 border-teal-600' : 'text-slate-500 hover:bg-slate-50'}`}><Download size={16}/> {t.io.export}</button>
+                    <button onClick={() => { setIoMode('import'); setIoText(''); }} className={`flex-1 py-4 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${ioMode === 'import' ? 'text-teal-600 bg-teal-50/50 border-b-2 border-teal-600' : 'text-slate-500 hover:bg-slate-50'}`}><Upload size={16}/> {t.io.import}</button>
+                    <button onClick={() => setIoModalOpen(false)} className="absolute top-3 right-3 text-slate-400 hover:text-slate-600 p-1 hover:bg-slate-100 rounded-full"><X size={18}/></button>
+                </div>
+                <div className="p-5 flex-1 flex flex-col gap-4">
+                    {ioMode === 'export' && (<button onClick={handleExportImage} className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium text-sm transition-all flex items-center justify-center gap-2 mb-2"><ImageIcon size={16}/> {t.io.exportImg}</button>)}
+                    <div className="relative flex-1">
+                        <textarea value={ioText} onChange={(e) => setIoText(e.target.value)} readOnly={ioMode === 'export'} placeholder={ioMode === 'import' ? t.io.placeholderImport : ""} className="w-full h-64 bg-slate-50 border border-slate-200 rounded-lg p-4 font-mono text-xs text-slate-700 focus:ring-2 focus:ring-teal-500 outline-none resize-none" spellCheck={false}/>
+                        {ioMode === 'export' && (<button onClick={handleCopyCode} className="absolute top-3 right-3 p-2 bg-white border border-slate-200 rounded-md shadow-sm hover:bg-slate-50 text-slate-600 transition-all active:scale-95" title={t.io.copy}>{copySuccess ? <Check size={16} className="text-green-500"/> : <Copy size={16}/>}</button>)}
+                    </div>
+                    {ioMode === 'import' ? (<button onClick={handleImportMermaid} className="w-full py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium text-sm transition-all flex items-center justify-center gap-2 shadow-sm shadow-teal-200"><Upload size={16}/> {t.io.importBtn}</button>) : (<div className="text-xs text-slate-400 text-center">{t.io.importHint}</div>)}
+                </div>
             </div>
         </div>
       )}
 
-      {/* Trash Zone */}
-      {!isZenMode && (
-          <div 
-            ref={trashRef}
-            className={`fixed bottom-0 right-0 w-48 h-48 flex items-center justify-center transition-all duration-300 pointer-events-none z-10 
-              ${isDraggingNodes ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'}
-            `}
-            style={{ 
-               background: isOverTrash ? 'radial-gradient(circle at bottom right, #fee2e2 0%, transparent 70%)' : 'radial-gradient(circle at bottom right, #f1f5f9 0%, transparent 70%)'
-            }}
-          >
-             <div className={`transition-transform duration-300 ${isOverTrash ? 'scale-125 text-red-500' : 'text-slate-300'}`}>
-                <Trash2 size={48} />
-             </div>
-          </div>
-      )}
+      {/* BEAUTIFIED CONTEXT MENU: Glassmorphism + Animation */}
+      {contextMenu && (
+        <>
+        <div className="fixed inset-0 z-40" onMouseDown={() => setContextMenu(null)} />
+        <div 
+            className="absolute bg-white/80 backdrop-blur-xl shadow-2xl border border-white/40 ring-1 ring-black/5 rounded-2xl py-2 min-w-[200px] z-50 animate-in overflow-hidden origin-top-left" 
+            style={{ left: contextMenu.x, top: contextMenu.y }} 
+            onMouseDown={(e) => e.stopPropagation()}
+        >
+           {/* Color Palette */}
+           <div className="px-4 py-2 border-b border-slate-100/50">
+               <span className="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-2 flex items-center gap-1"><Palette size={12}/> {t.context.color}</span>
+               <div className="flex gap-1.5 flex-wrap">
+                   {/* Default White */}
+                    <button 
+                        onClick={() => contextMenu.nodeId && updateNodeColor(contextMenu.nodeId, '#fff')}
+                        className="w-5 h-5 rounded-full border border-slate-200 hover:scale-110 transition-transform bg-white"
+                        title={t.context.defaultWhite}
+                    />
+                   {COLORS.map(color => (
+                       <button 
+                            key={color}
+                            onClick={() => contextMenu.nodeId && updateNodeColor(contextMenu.nodeId, color)}
+                            className="w-5 h-5 rounded-full border border-slate-200/50 hover:scale-110 transition-transform"
+                            style={{ backgroundColor: color }}
+                       />
+                   ))}
+               </div>
+           </div>
 
+           <button className="group w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-white/50 flex items-center gap-3 transition-all active:scale-95" onClick={() => { if (contextMenu.nodeId) toggleShape(contextMenu.nodeId); }}>
+               <div className="p-1.5 rounded-lg bg-teal-50 text-teal-600 group-hover:bg-teal-100 transition-colors">
+                   {nodes.find(n => n.id === contextMenu.nodeId)?.shape === 'circle' ? <Square size={16} /> : <Circle size={16}/>}
+               </div>
+               <span className="font-medium">{t.context.toggleShape}</span>
+           </button>
+           
+           <div className="h-px bg-slate-200/50 mx-4 my-1"/>
+           
+           <button className="group w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-white/50 flex items-center gap-3 transition-all active:scale-95" onClick={() => { if (contextMenu.nodeId) { const targetIds = selectedNodeIds.has(contextMenu.nodeId) ? selectedNodeIds : new Set([contextMenu.nodeId]); const isAnyUnpinned = nodes.some(n => targetIds.has(n.id) && !n.pinned); syncSimulationToState(); saveHistory(); setNodes(prev => prev.map(n => targetIds.has(n.id) ? { ...n, pinned: isAnyUnpinned } : n)); setContextMenu(null); playSound('click', isMuted); } }}> 
+               <div className="p-1.5 rounded-lg bg-slate-100 text-slate-600 group-hover:bg-slate-200 transition-colors">
+                 {(() => { const targetIds = (contextMenu.nodeId && selectedNodeIds.has(contextMenu.nodeId)) ? selectedNodeIds : new Set([contextMenu.nodeId!]); const isAnyUnpinned = nodes.some(n => targetIds.has(n.id) && !n.pinned); return isAnyUnpinned ? <Pin size={16}/> : <PinOff size={16}/>; })()} 
+               </div>
+               <span className="font-medium">{(() => { const targetIds = (contextMenu.nodeId && selectedNodeIds.has(contextMenu.nodeId)) ? selectedNodeIds : new Set([contextMenu.nodeId!]); const isAnyUnpinned = nodes.some(n => targetIds.has(n.id) && !n.pinned); return isAnyUnpinned ? t.context.pin : t.context.unpin; })()}</span>
+           </button>
+           
+           <button className="group w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-white/50 flex items-center gap-3 transition-all active:scale-95" onClick={() => { if (contextMenu.nodeId) { const targetIds = selectedNodeIds.has(contextMenu.nodeId) ? selectedNodeIds : new Set([contextMenu.nodeId]); saveHistory(); setEdges(prev => prev.filter(e => !targetIds.has(e.source) && !targetIds.has(e.target))); playSound('unlink', isMuted); } setContextMenu(null); }}>
+               <div className="p-1.5 rounded-lg bg-slate-100 text-slate-600 group-hover:bg-slate-200 transition-colors">
+                   <Unlink size={16}/>
+               </div>
+               <span className="font-medium">{t.context.unlink}</span>
+           </button>
+           
+           <div className="h-px bg-slate-200/50 mx-4 my-1"/>
+           
+           <button className="group w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50/50 flex items-center gap-3 transition-all active:scale-95" onClick={() => { if (contextMenu.nodeId) { const targetIds = selectedNodeIds.has(contextMenu.nodeId) ? selectedNodeIds : new Set([contextMenu.nodeId]); deleteNodes(targetIds); } setContextMenu(null); }}>
+               <div className="p-1.5 rounded-lg bg-red-100 text-red-500 group-hover:bg-red-200 transition-colors">
+                   <Trash2 size={16}/>
+               </div>
+               <span className="font-medium">{t.context.delete}</span>
+           </button>
+        </div>
+        </>
+      )}
     </div>
   );
 };
