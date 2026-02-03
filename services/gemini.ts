@@ -1,12 +1,27 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
-// Initialize the client using the environment variable as strictly requested.
-// Note: In a real Vite app, you might need extra config to expose process.env, 
-// but we follow the prompt's instruction to use process.env.API_KEY.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+export const brainstormSubNodes = async (
+  text: string, 
+  lang: 'zh' | 'en',
+  apiKey: string,
+  baseUrl?: string
+): Promise<string[]> => {
+  // If no API key is provided, we cannot proceed.
+  if (!apiKey) {
+      console.warn("Brainstorming skipped: No API Key provided.");
+      return [];
+  }
 
-export const brainstormSubNodes = async (text: string, lang: 'zh' | 'en'): Promise<string[]> => {
   try {
+    const clientOptions: any = { apiKey };
+    
+    // If a custom base URL is provided, use it.
+    if (baseUrl && baseUrl.trim()) {
+        clientOptions.baseUrl = baseUrl.trim();
+    }
+
+    const ai = new GoogleGenAI(clientOptions);
+
     const prompt = lang === 'zh'
       ? `针对主题 "${text}"，给出 5 个简短的、有启发性的发散思维关键词或短语（每个不超过10个字）。请直接返回一个纯 JSON 字符串数组。`
       : `Generate 5 short, insightful brainstorming keywords or phrases (max 5 words each) related to the topic "${text}". Return a pure JSON array of strings.`;

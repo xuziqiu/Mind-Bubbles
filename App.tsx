@@ -41,7 +41,8 @@ import {
   Maximize,
   Languages,
   Sparkles,
-  Loader2
+  Loader2,
+  Bot
 } from 'lucide-react';
 
 // --- TRANSLATIONS ---
@@ -66,6 +67,7 @@ const TRANSLATIONS = {
       frozen: "已冻结",
       floating: "已悬浮",
       physics: "物理参数设置",
+      aiConfig: "AI 设置",
       fitView: "适应画布",
       zenMode: "禅模式 (隐藏界面)",
       io: "导出/导入 Mermaid 代码",
@@ -82,6 +84,16 @@ const TRANSLATIONS = {
       stiffness: "弹性刚度",
       gravity: "向心力 (Gravity)",
       friction: "阻尼 (Friction)"
+    },
+    ai: {
+      title: "AI 配置",
+      enable: "启用 AI 辅助 (Gemini)",
+      apiKey: "API 密钥 (API Key)",
+      endpoint: "API 地址 (可选)",
+      placeholderKey: "输入 Google Gemini API Key...",
+      placeholderEndpoint: "默认为官方地址，可填代理地址",
+      hint: "密钥仅保存在本地浏览器中，不会上传到服务器。",
+      noKeyAlert: "请先在 AI 设置中配置 API Key"
     },
     io: {
       export: "导出 Mermaid",
@@ -161,6 +173,7 @@ const TRANSLATIONS = {
       frozen: "Frozen",
       floating: "Floating",
       physics: "Physics Settings",
+      aiConfig: "AI Settings",
       fitView: "Fit View",
       zenMode: "Zen Mode (Hide UI)",
       io: "Import / Export",
@@ -177,6 +190,16 @@ const TRANSLATIONS = {
       stiffness: "Stiffness",
       gravity: "Gravity",
       friction: "Friction"
+    },
+    ai: {
+      title: "AI Configuration",
+      enable: "Enable AI (Gemini)",
+      apiKey: "API Key",
+      endpoint: "Base URL (Optional)",
+      placeholderKey: "Enter Google Gemini API Key...",
+      placeholderEndpoint: "Default: https://generativelanguage.googleapis.com",
+      hint: "Your key is stored locally in your browser.",
+      noKeyAlert: "Please configure API Key in AI Settings first"
     },
     io: {
       export: "Export Mermaid",
@@ -366,6 +389,7 @@ interface HistoryState {
 
 const STORAGE_KEY = 'mindbubbles_data_v1';
 const LANG_KEY = 'mindbubbles_lang';
+const AI_CONFIG_KEY = 'mindbubbles_ai_config';
 
 const App: React.FC = () => {
   const [nodes, setNodes] = useState<GraphNode[]>(INITIAL_NODES);
@@ -390,7 +414,18 @@ const App: React.FC = () => {
       return (localStorage.getItem(LANG_KEY) as 'zh' | 'en') || 'zh';
   });
 
+  // AI Configuration State
+  const [aiConfig, setAiConfig] = useState<{enabled: boolean, apiKey: string, baseUrl: string}>(() => {
+      const saved = localStorage.getItem(AI_CONFIG_KEY);
+      return saved ? JSON.parse(saved) : { enabled: false, apiKey: '', baseUrl: '' };
+  });
+  const [showAiConfig, setShowAiConfig] = useState(false);
+
   const t = TRANSLATIONS[lang];
+
+  useEffect(() => {
+      localStorage.setItem(AI_CONFIG_KEY, JSON.stringify(aiConfig));
+  }, [aiConfig]);
 
   const toggleLang = () => {
       setLang(prev => {
@@ -790,6 +825,7 @@ const App: React.FC = () => {
           setHelpModalOpen(false);
           setShowPhysicsSettings(false);
           setIoModalOpen(false);
+          setShowAiConfig(false);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -808,10 +844,16 @@ const App: React.FC = () => {
       const parentNode = nodes.find(n => n.id === parentNodeId);
       if (!parentNode || !parentNode.text) return;
 
+      if (!aiConfig.enabled) return;
+      if (!aiConfig.apiKey) {
+          setShowAiConfig(true);
+          return;
+      }
+
       setIsThinking(true);
       setContextMenu(null);
 
-      const generatedIdeas = await brainstormSubNodes(parentNode.text, lang);
+      const generatedIdeas = await brainstormSubNodes(parentNode.text, lang, aiConfig.apiKey, aiConfig.baseUrl);
       
       if (generatedIdeas.length > 0) {
           syncSimulationToState();
@@ -1878,7 +1920,7 @@ const App: React.FC = () => {
   };
 
   const handleWheel = (e: React.WheelEvent) => {
-    if (ioModalOpen) return;
+    if (ioModalOpen || showAiConfig) return;
     setHasInteracted(true);
     
     // Direct Zoom logic
@@ -2286,6 +2328,61 @@ const App: React.FC = () => {
         </div>
       )}
 
+      {/* AI Config Modal */}
+      {!isZenMode && showAiConfig && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-slate-900/20 backdrop-blur-sm" onClick={() => setShowAiConfig(false)} />
+            <div className="io-modal relative bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-100 w-full max-w-md animate-in overflow-hidden p-6">
+                <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-xl font-light text-slate-800 tracking-widest flex items-center gap-3">
+                        <Bot size={24} className="text-indigo-600"/> 
+                        {t.ai.title}
+                    </h2>
+                    <button onClick={() => setShowAiConfig(false)} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={24}/></button>
+                </div>
+                
+                <div className="space-y-6">
+                    <div className="flex items-center justify-between">
+                        <label className="text-sm font-medium text-slate-700">{t.ai.enable}</label>
+                        <button 
+                            className={`w-12 h-6 rounded-full transition-colors relative ${aiConfig.enabled ? 'bg-indigo-600' : 'bg-slate-200'}`}
+                            onClick={() => setAiConfig(prev => ({...prev, enabled: !prev.enabled}))}
+                        >
+                            <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${aiConfig.enabled ? 'left-7' : 'left-1'}`} />
+                        </button>
+                    </div>
+
+                    {aiConfig.enabled && (
+                        <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
+                            <div className="space-y-2">
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">{t.ai.apiKey}</label>
+                                <input 
+                                    type="password" 
+                                    value={aiConfig.apiKey}
+                                    onChange={(e) => setAiConfig(prev => ({...prev, apiKey: e.target.value}))}
+                                    placeholder={t.ai.placeholderKey}
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                                />
+                            </div>
+                            
+                            <div className="space-y-2">
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">{t.ai.endpoint}</label>
+                                <input 
+                                    type="text" 
+                                    value={aiConfig.baseUrl}
+                                    onChange={(e) => setAiConfig(prev => ({...prev, baseUrl: e.target.value}))}
+                                    placeholder={t.ai.placeholderEndpoint}
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                                />
+                            </div>
+                            <p className="text-xs text-slate-400">{t.ai.hint}</p>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+      )}
+
       {/* Help / Instruction Manual Modal */}
       {helpModalOpen && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
@@ -2397,14 +2494,19 @@ const App: React.FC = () => {
 
              <div className="w-px h-8 bg-slate-100 mx-1" />
 
-             {/* Group 3: View/IO */}
+             {/* Group 3: AI Config */}
+             <button className={`p-3 rounded-xl transition-all ${showAiConfig ? 'bg-indigo-50 text-indigo-600' : (aiConfig.enabled ? 'text-indigo-500 hover:bg-indigo-50' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600')}`} onClick={() => setShowAiConfig(true)} title={t.toolbar.aiConfig}><Bot size={20}/></button>
+
+             <div className="w-px h-8 bg-slate-100 mx-1" />
+
+             {/* Group 4: View/IO */}
              <button className="p-3 rounded-xl text-slate-400 hover:bg-slate-50 hover:text-slate-600 transition-all" onClick={handleResetView} title={t.toolbar.fitView}><Maximize size={20} /></button>
              <button className={`p-3 rounded-xl transition-all text-slate-400 hover:bg-slate-50 hover:text-indigo-600`} onClick={() => setIsZenMode(true)} title={t.toolbar.zenMode}><Eye size={20} /></button>
              <button className={`p-3 rounded-xl transition-all ${ioModalOpen ? 'bg-slate-100 text-teal-600' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`} onClick={handleOpenExport} title={t.toolbar.io}><Code size={20}/></button>
 
              <div className="w-px h-8 bg-slate-100 mx-1" />
 
-             {/* Group 4: System */}
+             {/* Group 5: System */}
              <button className={`p-3 rounded-xl transition-all ${isMuted ? 'text-slate-400' : 'text-slate-600 hover:bg-slate-50'}`} onClick={() => setIsMuted(!isMuted)} title={isMuted ? t.toolbar.muted : t.toolbar.soundOn}>{isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}</button>
              <button className={`p-3 rounded-xl transition-all ${helpModalOpen ? 'bg-teal-50 text-teal-600' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`} onClick={() => setHelpModalOpen(true)} title={t.toolbar.help}><BookOpen size={20}/></button>
              <button className="px-2 py-3 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-50 hover:text-teal-600 transition-all flex flex-col items-center justify-center gap-0.5" onClick={toggleLang} title={t.toolbar.lang}>
@@ -2526,10 +2628,14 @@ const App: React.FC = () => {
 
            {/* BRAINSTORM BUTTON */}
            <button 
-                className="group w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-white/50 flex items-center gap-3 transition-all active:scale-95" 
-                onClick={() => { if (contextMenu.nodeId) handleBrainstorm(contextMenu.nodeId); }}
+                className={`group w-full text-left px-4 py-2.5 text-sm flex items-center gap-3 transition-all active:scale-95 ${aiConfig.enabled ? 'text-slate-700 hover:bg-white/50' : 'text-slate-300 cursor-not-allowed'}`}
+                onClick={() => { 
+                    if (!aiConfig.enabled) return;
+                    if (contextMenu.nodeId) handleBrainstorm(contextMenu.nodeId); 
+                }}
+                title={aiConfig.enabled ? "" : t.ai.noKeyAlert}
             >
-               <div className="p-1.5 rounded-lg bg-indigo-50 text-indigo-600 group-hover:bg-indigo-100 transition-colors">
+               <div className={`p-1.5 rounded-lg transition-colors ${aiConfig.enabled ? 'bg-indigo-50 text-indigo-600 group-hover:bg-indigo-100' : 'bg-slate-50 text-slate-300'}`}>
                    <Sparkles size={16} />
                </div>
                <span className="font-medium">{t.context.brainstorm}</span>
