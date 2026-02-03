@@ -1,8 +1,13 @@
-import React, { useState, useRef, useCallback, useEffect, useLayoutEffect } from 'react';
-import { Node as GraphNode, Edge, ViewState, ContextMenuState } from './types';
+import React, { useState, useRef, useCallback, useEffect, useLayoutEffect, useMemo } from 'react';
+import { Node as GraphNode, Edge, ViewState, ContextMenuState, VisualEffect, HistoryState } from './types';
 import { COLORS, INITIAL_NODES, INITIAL_EDGES, ZOOM_SENSITIVITY, MIN_ZOOM, MAX_ZOOM, DEFAULT_DIMENSIONS, DEFAULT_PHYSICS } from './constants';
-import { 
-  MousePointer2, 
+import { getPhysicsRadius, mapRange } from './utils/physics';
+import { getDistanceToSegment } from './utils/geometry';
+import { initAudio, playSound } from './utils/audio';
+import { TRANSLATIONS } from './i18n';
+import { EdgeLine } from './components/EdgeLine';
+import {
+  MousePointer2,
   Trash2,
   Unlink,
   Link as LinkIcon,
@@ -42,365 +47,6 @@ import {
   Save,
   FolderOpen
 } from 'lucide-react';
-
-// --- TRANSLATIONS ---
-const TRANSLATIONS = {
-  zh: {
-    appTitle: "思 绪 气 泡",
-    defaultNode: "想法",
-    magnetNode: "磁铁",
-    tips: {
-      drag: "左键 · 拖拽选中",
-      rightClick: "右键 · 连线创建",
-      pan: "中键 · 平移画布",
-      paste: "提示：Ctrl+V 可直接粘贴图片"
-    },
-    toolbar: {
-      undo: "撤销 (Ctrl+Z)",
-      redo: "重做 (Ctrl+Y)",
-      shapeCircle: "形状：圆形",
-      shapeRect: "形状：矩形",
-      magnetActive: "定位并吸引想法",
-      magnetInactive: "在中心生成磁铁",
-      frozen: "已冻结",
-      floating: "已悬浮",
-      physics: "物理参数设置",
-      fitView: "适应画布",
-      io: "文件与数据",
-      muted: "已静音",
-      soundOn: "开启音效",
-      help: "操作说明",
-      lang: "切换语言",
-      darkMode: "深色模式",
-      lightMode: "浅色模式",
-      search: "搜索 (Ctrl+F)",
-      menu: "更多设置"
-    },
-    physics: {
-      title: "物理参数",
-      repulsion: "排斥力",
-      length: "连线长度",
-      stiffness: "弹性刚度",
-      gravity: "向心力 (Gravity)",
-      friction: "阻尼 (Friction)"
-    },
-    io: {
-      title: "数据管理",
-      tabCode: "代码 (Mermaid)",
-      tabFile: "文件 (JSON)",
-      tabHistory: "历史快照",
-      export: "导出 Mermaid",
-      import: "导入 Mermaid",
-      exportImg: "导出为图片 (PNG)",
-      saveFile: "保存为文件 (.mb)",
-      loadFile: "打开文件",
-      placeholderExport: "",
-      placeholderImport: "粘贴 Mermaid 流程图代码...\n例如：\nA[想法] --> B((灵感))",
-      copy: "复制",
-      importBtn: "导入并生成脑图",
-      importHint: "复制上方代码，可在 Notion 或 GitHub 中直接展示流程图。",
-      error: "未能识别有效的 Mermaid 代码。",
-      snapshotDesc: "自动保存最近 5 次的重要变更。",
-      restore: "恢复",
-      deleteSnap: "删除",
-      noSnaps: "暂无快照记录",
-      loadError: "文件格式错误"
-    },
-    context: {
-      color: "颜色",
-      defaultWhite: "默认白",
-      toggleShape: "切换形状",
-      pin: "固定位置",
-      unpin: "解除固定",
-      unlink: "断开连接",
-      delete: "删除气泡"
-    },
-    canvas: {
-      create: "创建气泡",
-      link: "建立连接",
-      unlink: "断开连接",
-      split: "插入连线",
-      merge: "拉紧融合",
-      deleteZone: "释放删除",
-      emptyState: "双击空白处创建"
-    },
-    help: {
-      title: "操作指南",
-      basic: "基础交互",
-      drag: "左键拖拽",
-      dragDesc: "移动气泡位置，或框选多个气泡",
-      create: "双击空白处",
-      createDesc: "在当前位置快速创建新气泡",
-      right: "右键操作",
-      rightDesc: "点击气泡唤出菜单，拖拽气泡创建连线",
-      edit: "双击连线",
-      editDesc: "为连线添加关系说明",
-      advanced: "进阶技巧",
-      paste: "粘贴图片",
-      pasteDesc: "Ctrl+V 直接将剪贴板图片贴为气泡",
-      merge: "拉紧融合",
-      mergeDesc: "按住连线向中间拖拽，可合并两个想法",
-      trash: "拖入右下角",
-      trashDesc: "将气泡拖入右下角红区可快速删除",
-      magnet: "磁铁模式",
-      magnetDesc: "点击磁铁图标，一键吸附整理所有游离想法",
-      shortcuts: "快捷键",
-      undoKey: "撤销",
-      redoKey: "重做",
-      confirmKey: "确认编辑",
-      newlineKey: "换行",
-      tabKey: "创建子节点",
-      tabDesc: "Tab 键快速创建并连接子节点",
-      searchKey: "搜索",
-      searchDesc: "Ctrl+F 快速查找并定位气泡"
-    },
-    search: {
-      placeholder: "输入关键词搜索气泡...",
-      noResults: "未找到结果"
-    }
-  },
-  en: {
-    appTitle: "M I N D  B U B B L E S",
-    defaultNode: "Idea",
-    magnetNode: "MAGNET",
-    tips: {
-      drag: "L-Click · Drag Select",
-      rightClick: "R-Click · Link / Menu",
-      pan: "M-Click · Pan View",
-      paste: "Tip: Ctrl+V to paste images"
-    },
-    toolbar: {
-      undo: "Undo (Ctrl+Z)",
-      redo: "Redo (Ctrl+Y)",
-      shapeCircle: "Shape: Circle",
-      shapeRect: "Shape: Rectangle",
-      magnetActive: "Locate & Attract",
-      magnetInactive: "Spawn Magnet",
-      frozen: "Frozen",
-      floating: "Floating",
-      physics: "Physics Settings",
-      fitView: "Fit View",
-      io: "Data & Files",
-      muted: "Muted",
-      soundOn: "Sound On",
-      help: "Guide",
-      lang: "Switch Language",
-      darkMode: "Dark Mode",
-      lightMode: "Light Mode",
-      search: "Search (Ctrl+F)",
-      menu: "More Settings"
-    },
-    physics: {
-      title: "Physics",
-      repulsion: "Repulsion",
-      length: "Edge Length",
-      stiffness: "Stiffness",
-      gravity: "Gravity",
-      friction: "Friction"
-    },
-    io: {
-      title: "Data Manager",
-      tabCode: "Code (Mermaid)",
-      tabFile: "File (JSON)",
-      tabHistory: "Snapshots",
-      export: "Export Mermaid",
-      import: "Import Mermaid",
-      exportImg: "Export Image (PNG)",
-      saveFile: "Save File (.mb)",
-      loadFile: "Open File",
-      placeholderExport: "",
-      placeholderImport: "Paste Mermaid code...\ne.g.,\nA[Idea] --> B((Spark))",
-      copy: "Copy",
-      importBtn: "Import & Generate",
-      importHint: "Copy code above for Notion or GitHub.",
-      error: "Invalid Mermaid code.",
-      snapshotDesc: "Auto-saves last 5 significant changes.",
-      restore: "Restore",
-      deleteSnap: "Delete",
-      noSnaps: "No snapshots found",
-      loadError: "Invalid File Format"
-    },
-    context: {
-      color: "Color",
-      defaultWhite: "White",
-      toggleShape: "Toggle Shape",
-      pin: "Pin Position",
-      unpin: "Unpin",
-      unlink: "Unlink",
-      delete: "Delete Node"
-    },
-    canvas: {
-      create: "Create Bubble",
-      link: "Connect",
-      unlink: "Disconnect",
-      split: "Split Edge",
-      merge: "Merge",
-      deleteZone: "Drop to Delete",
-      emptyState: "Double click to create"
-    },
-    help: {
-      title: "User Guide",
-      basic: "Basic",
-      drag: "L-Click Drag",
-      dragDesc: "Move nodes or box select.",
-      create: "Double Click",
-      createDesc: "Create a new bubble at cursor.",
-      right: "Right Click",
-      rightDesc: "Menu on node, or drag to link.",
-      edit: "Double Click Edge",
-      editDesc: "Add label to connection.",
-      advanced: "Advanced",
-      paste: "Paste Image",
-      pasteDesc: "Ctrl+V to paste image as bubble.",
-      merge: "Tension Merge",
-      mergeDesc: "Drag edge tight to merge nodes.",
-      trash: "Corner Trash",
-      trashDesc: "Drag node to bottom-right to delete.",
-      magnet: "Magnet Mode",
-      magnetDesc: "Click magnet to organize clutter.",
-      shortcuts: "Shortcuts",
-      undoKey: "Undo",
-      redoKey: "Redo",
-      confirmKey: "Confirm",
-      newlineKey: "New Line",
-      tabKey: "Create Child",
-      tabDesc: "Tab to spawn and link new node",
-      searchKey: "Search",
-      searchDesc: "Ctrl+F to find nodes"
-    },
-    search: {
-      placeholder: "Search bubbles...",
-      noResults: "No results found"
-    }
-  }
-};
-
-// --- AUDIO SYSTEM (Web Audio API) ---
-const audioCtxRef = { current: null as AudioContext | null };
-
-const initAudio = () => {
-    if (!audioCtxRef.current) {
-        audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-    }
-    if (audioCtxRef.current.state === 'suspended') {
-        audioCtxRef.current.resume();
-    }
-};
-
-const playSound = (type: 'pop' | 'click' | 'link' | 'unlink' | 'delete' | 'merge' | 'hover', muted: boolean) => {
-    if (muted || !audioCtxRef.current) return;
-    const ctx = audioCtxRef.current;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    const now = ctx.currentTime;
-
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-
-    if (type === 'pop') {
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(400, now);
-        osc.frequency.exponentialRampToValueAtTime(800, now + 0.1);
-        gain.gain.setValueAtTime(0.3, now);
-        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
-        osc.start(now);
-        osc.stop(now + 0.1);
-    } else if (type === 'click') {
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(1200, now); 
-        gain.gain.setValueAtTime(0.08, now); 
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
-        osc.start(now);
-        osc.stop(now + 0.03);
-    } else if (type === 'link') {
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(600, now);
-        osc.frequency.exponentialRampToValueAtTime(1200, now + 0.2);
-        gain.gain.setValueAtTime(0.2, now);
-        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
-        osc.start(now);
-        osc.stop(now + 0.3);
-    } else if (type === 'unlink') {
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(600, now);
-        osc.frequency.linearRampToValueAtTime(300, now + 0.15);
-        gain.gain.setValueAtTime(0.2, now);
-        gain.gain.linearRampToValueAtTime(0.01, now + 0.15);
-        osc.start(now);
-        osc.stop(now + 0.15);
-    } else if (type === 'delete') {
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(150, now);
-        osc.frequency.exponentialRampToValueAtTime(50, now + 0.2);
-        gain.gain.setValueAtTime(0.3, now);
-        gain.gain.linearRampToValueAtTime(0.01, now + 0.2);
-        osc.start(now);
-        osc.stop(now + 0.2);
-    } else if (type === 'merge') {
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(300, now);
-        osc.frequency.exponentialRampToValueAtTime(800, now + 0.3);
-        const osc2 = ctx.createOscillator();
-        osc2.type = 'square';
-        osc2.frequency.setValueAtTime(150, now);
-        osc2.frequency.linearRampToValueAtTime(400, now + 0.3);
-        const gain2 = ctx.createGain();
-        osc2.connect(gain2);
-        gain2.connect(ctx.destination);
-        
-        gain.gain.setValueAtTime(0.2, now);
-        gain.gain.linearRampToValueAtTime(0, now + 0.3);
-        gain2.gain.setValueAtTime(0.05, now);
-        gain2.gain.linearRampToValueAtTime(0, now + 0.3);
-        
-        osc.start(now); osc.stop(now + 0.3);
-        osc2.start(now); osc2.stop(now + 0.3);
-    }
-};
-
-const getPhysicsRadius = (node: GraphNode) => {
-  if (node.shape === 'circle') {
-    return node.dimensions.circleRadius;
-  } else {
-    return (node.dimensions.rectWidth + node.dimensions.rectHeight) / 4;
-  }
-};
-
-const mapRange = (value: number, outMin: number, outMax: number) => {
-    return outMin + (value / 100) * (outMax - outMin);
-};
-
-const getDistanceToSegment = (px: number, py: number, x1: number, y1: number, x2: number, y2: number) => {
-    const A = px - x1;
-    const B = py - y1;
-    const C = x2 - x1;
-    const D = y2 - y1;
-    const dot = A * C + B * D;
-    const lenSq = C * C + D * D;
-    let param = -1;
-    if (lenSq !== 0) param = dot / lenSq;
-    let xx, yy;
-    if (param < 0) { xx = x1; yy = y1; }
-    else if (param > 1) { xx = x2; yy = y2; }
-    else { xx = x1 + param * C; yy = y1 + param * D; }
-    const dx = px - xx;
-    const dy = py - yy;
-    return Math.sqrt(dx * dx + dy * dy);
-};
-
-interface VisualEffect {
-    id: string;
-    x: number;
-    y: number;
-    type: 'create' | 'delete' | 'link' | 'unlink' | 'merge';
-    timestamp: number;
-}
-
-interface HistoryState {
-  nodes: GraphNode[];
-  edges: Edge[];
-  timestamp?: number;
-}
 
 const STORAGE_KEY = 'mindbubbles_data_v1';
 const LANG_KEY = 'mindbubbles_lang';
@@ -448,7 +94,8 @@ const App: React.FC = () => {
       } catch { return []; }
   });
 
-  const t = TRANSLATIONS[lang];
+  // 当前语言的文案对象，使用 useMemo 避免每次渲染都重新创建引用
+  const t = useMemo(() => TRANSLATIONS[lang], [lang]);
 
   useEffect(() => {
       if (isDarkMode) {
@@ -474,6 +121,11 @@ const App: React.FC = () => {
       });
   };
 
+  // 语言切换后持久化到 localStorage，保证刷新后仍然保持最近一次选择
+  useEffect(() => {
+      localStorage.setItem(LANG_KEY, lang);
+  }, [lang]);
+
   const [selectedNodeIds, setSelectedNodeIds] = useState<Set<string>>(new Set());
   const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
   const [editingEdgeId, setEditingEdgeId] = useState<string | null>(null);
@@ -489,6 +141,7 @@ const App: React.FC = () => {
   const [ioMode, setIoMode] = useState<'export' | 'import' | 'file' | 'history'>('export');
   const [ioText, setIoText] = useState('');
   const [copySuccess, setCopySuccess] = useState(false);
+  const [ioError, setIoError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [physicsParams, setPhysicsParams] = useState(DEFAULT_PHYSICS);
@@ -595,7 +248,7 @@ const App: React.FC = () => {
 
   useLayoutEffect(() => {
     const newSimNodes: GraphNode[] = [];
-    const prevMap = new Map<string, GraphNode>(simulationNodes.current.map(n => [n.id, n]));
+    const prevMap = new Map<string, GraphNode>(simulationNodes.current.map(n => [n.id, n] as [string, GraphNode]));
 
     nodes.forEach(node => {
         const existing = prevMap.get(node.id);
@@ -740,29 +393,33 @@ const App: React.FC = () => {
                   reader.onload = (event) => {
                       if (event.target?.result) {
                           const imageUrl = event.target.result as string;
-                          const { x, y } = screenToCanvas(cursorRef.current.x, cursorRef.current.y);
-                          
                           syncSimulationToState();
                           saveHistory();
-                          playSound('pop', isMuted);
                           
-                          const newNodeId = Math.random().toString(36).slice(2);
-                          const newNode: GraphNode = {
-                              id: newNodeId, 
-                              text: '', 
-                              imageUrl: imageUrl,
-                              x: x, 
-                              y: y,
-                              color: '#fff', 
-                              shape: 'rectangle', 
-                              dimensions: { circleRadius: 60, rectWidth: 200, rectHeight: 200 }, 
-                              vx: 0, 
-                              vy: 0
-                          };
-                          
-                          triggerEffect(x, y, 'create');
-                          setNodes(prev => [...prev, newNode]);
-                          setSelectedNodeIds(new Set([newNodeId]));
+                          if (selectedNodeIds.size === 1) {
+                              const selectedId = [...selectedNodeIds][0];
+                              setNodes(prev => prev.map(n => n.id === selectedId ? { ...n, imageUrl } : n));
+                              playSound('click', isMuted);
+                          } else {
+                              const { x, y } = screenToCanvas(cursorRef.current.x, cursorRef.current.y);
+                              playSound('pop', isMuted);
+                              const newNodeId = Math.random().toString(36).slice(2);
+                              const newNode: GraphNode = {
+                                  id: newNodeId,
+                                  text: '',
+                                  imageUrl: imageUrl,
+                                  x: x,
+                                  y: y,
+                                  color: '#fff',
+                                  shape: 'rectangle',
+                                  dimensions: { circleRadius: 60, rectWidth: 200, rectHeight: 200 },
+                                  vx: 0,
+                                  vy: 0
+                              };
+                              triggerEffect(x, y, 'create');
+                              setNodes(prev => [...prev, newNode]);
+                              setSelectedNodeIds(new Set([newNodeId]));
+                          }
                       }
                   };
                   reader.readAsDataURL(blob);
@@ -773,7 +430,7 @@ const App: React.FC = () => {
 
       window.addEventListener('paste', handlePaste);
       return () => window.removeEventListener('paste', handlePaste);
-  }, [screenToCanvas, isMuted, syncSimulationToState]);
+  }, [screenToCanvas, isMuted, syncSimulationToState, selectedNodeIds]);
 
   const saveHistory = useCallback(() => {
     setPast(prev => {
@@ -1013,8 +670,9 @@ const App: React.FC = () => {
           survivorSimNode.vx = 0;
           survivorSimNode.vy = 0;
       }
-
-      triggerEffect(survivor.x, survivor.y, 'merge');
+      const mergeEffectX = survivorSimNode ? survivorSimNode.x : survivor.x;
+      const mergeEffectY = survivorSimNode ? survivorSimNode.y : survivor.y;
+      triggerEffect(mergeEffectX, mergeEffectY, 'merge');
       
       setNodes(prev => {
           const newNodes = prev.filter(n => n.id !== absorbed.id).map(n => {
@@ -1072,6 +730,43 @@ const App: React.FC = () => {
       const targetIds = selectedNodeIds.has(targetId) ? selectedNodeIds : new Set([targetId]);
       setNodes(prev => prev.map(n => targetIds.has(n.id) ? { ...n, color } : n));
       setContextMenu(null);
+  };
+
+  const handleSplitEdge = (edgeId: string, x: number, y: number, additionalSources: string[] = []) => {
+      const edge = edges.find(e => e.id === edgeId);
+      if (!edge) return;
+      
+      syncSimulationToState();
+      saveHistory();
+      
+      const newNodeId = Math.random().toString(36).slice(2);
+      const newNode: GraphNode = {
+          id: newNodeId,
+          text: t.defaultNode,
+          x,
+          y,
+          color: COLORS[0],
+          shape: defaultShape,
+          dimensions: { ...DEFAULT_DIMENSIONS },
+          vx: 0,
+          vy: 0
+      };
+
+      const newEdge1: Edge = { id: Math.random().toString(36).slice(2), source: edge.source, target: newNodeId };
+      const newEdge2: Edge = { id: Math.random().toString(36).slice(2), source: newNodeId, target: edge.target };
+      
+      const extraEdges = additionalSources.map(sid => ({
+          id: Math.random().toString(36).slice(2),
+          source: sid,
+          target: newNodeId
+      }));
+
+      setNodes(prev => [...prev, newNode]);
+      setEdges(prev => prev.filter(e => e.id !== edgeId).concat([newEdge1, newEdge2, ...extraEdges]));
+      setSelectedNodeIds(new Set([newNodeId]));
+      setEditingNodeId(newNodeId);
+      playSound('pop', isMuted);
+      triggerEffect(x, y, 'split');
   };
 
   useEffect(() => {
@@ -1442,10 +1137,10 @@ const App: React.FC = () => {
                   setIoModalOpen(false);
                   playSound('pop', isMuted);
               } else {
-                  alert(t.io.loadError);
+                  setIoError(t.io.loadError);
               }
           } catch (err) {
-              alert(t.io.loadError);
+              setIoError(t.io.loadError);
           }
       };
       reader.readAsText(file);
@@ -1474,6 +1169,7 @@ const App: React.FC = () => {
     setIoText(mermaid);
     setIoMode('export');
     setCopySuccess(false);
+    setIoError(null);
     setIoModalOpen(true);
   };
 
@@ -1538,8 +1234,8 @@ const App: React.FC = () => {
           }
       });
 
-      if (newNodes.length > 0) { setNodes(newNodes); setEdges(newEdges); setIoModalOpen(false); }
-      else alert(t.io.error);
+      if (newNodes.length > 0) { setNodes(newNodes); setEdges(newEdges); setIoModalOpen(false); setIoError(null); }
+      else setIoError(t.io.error);
   };
 
   const checkLinkAction = (sources: string[], targetId: string) => {
@@ -1654,46 +1350,67 @@ const App: React.FC = () => {
   const handleMagnetClick = () => {
       syncSimulationToState();
       
+      const connectedNodeIds = new Set(edges.flatMap(e => [e.source, e.target]));
+      const isolatedNodes = nodes.filter(n => n.type !== 'magnet' && !connectedNodeIds.has(n.id));
+      
       if (hasMagnet) {
           const magnet = nodes.find(n => n.type === 'magnet');
           if (magnet) {
-              setView(prev => {
-                  const newTx = (window.innerWidth / 2) - (magnet.x * prev.scale);
-                  const newTy = (window.innerHeight / 2) - (magnet.y * prev.scale);
-                  return { ...prev, translateX: newTx, translateY: newTy };
-              });
-              
-              simulationNodes.current.forEach(n => {
-                  if (n.type !== 'magnet' && !n.pinned) {
-                      const dx = magnet.x - n.x;
-                      const dy = magnet.y - n.y;
-                      const dist = Math.sqrt(dx*dx + dy*dy);
-                      if (dist > 100) { 
-                           const strength = 15;
-                           n.vx += (dx / dist) * strength;
-                           n.vy += (dy / dist) * strength;
-                      }
-                  }
-              });
-              playSound('click', isMuted);
+              saveHistory();
+              const nodeEdgeCount = (id: string) => edges.filter(e => e.source === id || e.target === id).length;
+              const edgesToRemove = edges.filter(e => {
+                  if (e.source !== magnet.id && e.target !== magnet.id) return false;
+                  const otherId = e.source === magnet.id ? e.target : e.source;
+                  return nodeEdgeCount(otherId) > 1;
+              }).map(e => e.id);
+              const alreadyConnectedToMagnet = new Set(
+                  edges.filter(e => e.source === magnet.id || e.target === magnet.id)
+                      .flatMap(e => [e.source, e.target].filter(id => id !== magnet.id))
+              );
+              const toConnect = isolatedNodes.filter(n => !alreadyConnectedToMagnet.has(n.id));
+              const newEdges = toConnect.map(n => ({
+                  id: Math.random().toString(36).slice(2),
+                  source: n.id,
+                  target: magnet.id
+              }));
+              setEdges(prev => [
+                  ...prev.filter(e => !edgesToRemove.includes(e.id)),
+                  ...newEdges
+              ]);
+              if (edgesToRemove.length > 0 || newEdges.length > 0) {
+                  playSound(newEdges.length >= edgesToRemove.length ? 'link' : 'unlink', isMuted);
+              } else {
+                  playSound('click', isMuted);
+              }
           }
       } else {
           saveHistory();
           const { x, y } = screenToCanvas(window.innerWidth / 2, window.innerHeight / 2);
+          const magnetId = Math.random().toString(36).slice(2);
           const magnetNode: GraphNode = {
-              id: Math.random().toString(36).slice(2),
+              id: magnetId,
               text: t.magnetNode,
-              x, 
+              x,
               y,
               type: 'magnet',
               shape: 'circle',
               dimensions: { ...DEFAULT_DIMENSIONS, circleRadius: 60 },
-              vx: 0, 
+              vx: 0,
               vy: 0,
               pinned: false
           };
           setNodes(prev => [...prev, magnetNode]);
-          playSound('pop', isMuted);
+          if (isolatedNodes.length > 0) {
+              const newEdges = isolatedNodes.map(n => ({
+                  id: Math.random().toString(36).slice(2),
+                  source: n.id,
+                  target: magnetId
+              }));
+              setEdges(prev => [...prev, ...newEdges]);
+              playSound('link', isMuted);
+          } else {
+              playSound('pop', isMuted);
+          }
       }
   };
 
@@ -2029,15 +1746,22 @@ const App: React.FC = () => {
     if (button === 2) {
       if (mode === 'link_create' && isDrag) {
         const target = getNodeAt(cx, cy);
-        handleLinkAction(target?.id || null, cx, cy);
+        const edge = getEdgeAt(cx, cy);
+
+        if (target) {
+            handleLinkAction(target.id, cx, cy);
+        } else if (edge) {
+            handleSplitEdge(edge.id, cx, cy, dragRef.current.linkSources);
+        } else {
+            handleLinkAction(null, cx, cy);
+        }
       } else if (!isDrag) {
         const edge = getEdgeAt(cx, cy);
         if (clickedNode) {
            setContextMenu({ visible: true, x: e.clientX, y: e.clientY, nodeId: clickedNode.id });
            playSound('click', isMuted);
         } else if (edge) {
-            setHoveredEdgeId(edge.id); 
-            handleLinkAction(null, cx, cy);
+            handleSplitEdge(edge.id, cx, cy);
         } else {
           // Right click on empty space -> Create Node
           syncSimulationToState();
@@ -2115,29 +1839,27 @@ const App: React.FC = () => {
                   {effect.type === 'merge' && (
                       <circle r="60" fill="none" stroke="#d97706" strokeWidth="3" className="effect-ripple"/>
                   )}
+                  {effect.type === 'split' && (
+                      <circle r="40" fill="none" stroke="#d97706" strokeWidth="2" className="effect-ripple"/>
+                  )}
               </g>
           ))}
 
           {edges.map(edge => {
-            const s = simulationNodes.current.find(n => n.id === edge.source) || {x:0, y:0};
-            const t = simulationNodes.current.find(n => n.id === edge.target) || {x:0, y:0};
+            const s = simulationNodes.current.find(n => n.id === edge.source) || { x: 0, y: 0 };
+            const t = simulationNodes.current.find(n => n.id === edge.target) || { x: 0, y: 0 };
             return (
-                <g key={edge.id}>
-                  <line
-                    ref={el => { if (el) edgeRefs.current.set(edge.id, el); else edgeRefs.current.delete(edge.id); }}
-                    x1={s.x} y1={s.y} x2={t.x} y2={t.y}
-                    stroke={hoveredEdgeId === edge.id ? "#0d9488" : (isDarkMode ? "#475569" : "#cbd5e1")}
-                    strokeWidth={hoveredEdgeId === edge.id ? 4 : 2}
-                    strokeLinecap="round"
-                    className="transition-colors duration-200 pointer-events-auto cursor-pointer" 
-                  />
-                  <line 
-                    x1={s.x} y1={s.y} x2={t.x} y2={t.y}
-                    stroke="transparent"
-                    strokeWidth="15"
-                    className="pointer-events-auto cursor-pointer"
-                  />
-                </g>
+              <EdgeLine
+                key={edge.id}
+                ref={el => { if (el) edgeRefs.current.set(edge.id, el); else edgeRefs.current.delete(edge.id); }}
+                edge={edge}
+                x1={s.x}
+                y1={s.y}
+                x2={t.x}
+                y2={t.y}
+                isHovered={hoveredEdgeId === edge.id}
+                isDarkMode={isDarkMode}
+              />
             );
           })}
 
@@ -2535,16 +2257,16 @@ const App: React.FC = () => {
          
          <div className="toolbar-scroll-area bg-white/90 dark:bg-slate-800/90 backdrop-blur shadow-2xl border border-slate-200 dark:border-slate-700 rounded-2xl p-2 flex items-center gap-1">
             {/* History */}
-            <button className={`p-3 rounded-xl transition-all ${past.length > 0 ? 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700' : 'text-slate-300 dark:text-slate-600 cursor-not-allowed'}`} onClick={handleUndo} title={t.toolbar.undo} disabled={past.length === 0}><Undo2 size={20} /></button>
-            <button className={`p-3 rounded-xl transition-all ${future.length > 0 ? 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700' : 'text-slate-300 dark:text-slate-600 cursor-not-allowed'}`} onClick={handleRedo} title={t.toolbar.redo} disabled={future.length === 0}><Redo2 size={20} /></button>
+            <button className={`p-3 rounded-xl transition-all ${past.length > 0 ? 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700' : 'text-slate-300 dark:text-slate-600 cursor-not-allowed'}`} onClick={handleUndo} title={t.toolbar.undo} aria-label={t.toolbar.undo} disabled={past.length === 0}><Undo2 size={20} /></button>
+            <button className={`p-3 rounded-xl transition-all ${future.length > 0 ? 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700' : 'text-slate-300 dark:text-slate-600 cursor-not-allowed'}`} onClick={handleRedo} title={t.toolbar.redo} aria-label={t.toolbar.redo} disabled={future.length === 0}><Redo2 size={20} /></button>
             
             <div className="w-px h-8 bg-slate-100 dark:bg-slate-700 mx-1 shrink-0" />
             
             {/* Core Tools */}
-            <button className="p-3 rounded-xl text-slate-400 dark:text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-600 dark:hover:text-slate-300 transition-all" onClick={() => { setIsSearchOpen(!isSearchOpen); setTimeout(() => searchInputRef.current?.focus(), 100); }} title={t.toolbar.search}><Search size={20} /></button>
-            <button className={`p-3 rounded-xl transition-all ${'bg-teal-50 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 shadow-sm'}`} onClick={() => setDefaultShape(prev => prev === 'circle' ? 'rectangle' : 'circle')} title={defaultShape === 'circle' ? t.toolbar.shapeCircle : t.toolbar.shapeRect}> {defaultShape === 'circle' ? <Circle size={20} /> : <Square size={20} />} </button>
-            <button className={`p-3 rounded-xl transition-all ${hasMagnet ? 'bg-amber-100 text-amber-600 shadow-sm ring-2 ring-amber-200 ring-offset-1' : 'text-slate-400 dark:text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-600 dark:hover:text-slate-300'}`} onClick={handleMagnetClick} title={hasMagnet ? t.toolbar.magnetActive : t.toolbar.magnetInactive}><Magnet size={20} className={hasMagnet ? "" : ""}/></button>
-            <button className={`p-3 rounded-xl transition-all ${!isFloating ? 'bg-teal-50 text-teal-600' : 'text-slate-400 dark:text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-600 dark:hover:text-slate-300'}`} onClick={() => setIsFloating(!isFloating)} title={!isFloating ? t.toolbar.frozen : t.toolbar.floating}><Snowflake size={20} /></button>
+            <button className="p-3 rounded-xl text-slate-400 dark:text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-600 dark:hover:text-slate-300 transition-all" onClick={() => { setIsSearchOpen(!isSearchOpen); setTimeout(() => searchInputRef.current?.focus(), 100); }} title={t.toolbar.search} aria-label={t.toolbar.search}><Search size={20} /></button>
+            <button className={`p-3 rounded-xl transition-all ${'bg-teal-50 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 shadow-sm'}`} onClick={() => setDefaultShape(prev => prev === 'circle' ? 'rectangle' : 'circle')} title={defaultShape === 'circle' ? t.toolbar.shapeCircle : t.toolbar.shapeRect} aria-label={defaultShape === 'circle' ? t.toolbar.shapeCircle : t.toolbar.shapeRect}> {defaultShape === 'circle' ? <Circle size={20} /> : <Square size={20} />} </button>
+            <button className={`p-3 rounded-xl transition-all ${hasMagnet ? 'bg-amber-100 text-amber-600 shadow-sm ring-2 ring-amber-200 ring-offset-1' : 'text-slate-400 dark:text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-600 dark:hover:text-slate-300'}`} onClick={handleMagnetClick} title={hasMagnet ? t.toolbar.magnetActive : t.toolbar.magnetInactive} aria-label={hasMagnet ? t.toolbar.magnetActive : t.toolbar.magnetInactive}><Magnet size={20} className={hasMagnet ? "" : ""}/></button>
+            <button className={`p-3 rounded-xl transition-all ${!isFloating ? 'bg-teal-50 text-teal-600' : 'text-slate-400 dark:text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-600 dark:hover:text-slate-300'}`} onClick={() => setIsFloating(!isFloating)} title={!isFloating ? t.toolbar.frozen : t.toolbar.floating} aria-label={!isFloating ? t.toolbar.frozen : t.toolbar.floating}><Snowflake size={20} /></button>
 
             <div className="w-px h-8 bg-slate-100 dark:bg-slate-700 mx-1 shrink-0" />
 
@@ -2554,6 +2276,7 @@ const App: React.FC = () => {
                     className={`p-3 rounded-xl transition-all ${isMenuOpen ? 'bg-slate-100 dark:bg-slate-700 text-indigo-600' : 'text-slate-400 dark:text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-indigo-600'}`} 
                     onClick={() => setIsMenuOpen(!isMenuOpen)} 
                     title={t.toolbar.menu}
+                    aria-label={t.toolbar.menu}
                  >
                      <Settings2 size={20} />
                  </button>
@@ -2562,16 +2285,16 @@ const App: React.FC = () => {
                  {isMenuOpen && (
                      <div className="absolute left-full top-1/2 -translate-y-1/2 ml-4 flex items-center gap-1 bg-white/90 dark:bg-slate-800/90 backdrop-blur-xl shadow-2xl border border-slate-200 dark:border-slate-700 rounded-2xl p-2 animate-in fade-in slide-in-from-left-2 z-50 menu-popover whitespace-nowrap">
                          {/* Secondary Tools */}
-                         <button className={`p-3 rounded-xl transition-all flex flex-col items-center gap-1 ${showPhysicsSettings ? 'bg-slate-100 dark:bg-slate-700 text-teal-600' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-600 dark:hover:text-slate-300'}`} onClick={() => { setShowPhysicsSettings(!showPhysicsSettings); setIsMenuOpen(false); }} title={t.toolbar.physics}><Wind size={20}/></button>
-                         <button className="p-3 rounded-xl text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-600 dark:hover:text-slate-300 transition-all flex flex-col items-center gap-1" onClick={handleResetView} title={t.toolbar.fitView}><Maximize size={20} /></button>
-                         <button className={`p-3 rounded-xl transition-all ${ioModalOpen ? 'bg-slate-100 dark:bg-slate-700 text-teal-600 dark:text-teal-400' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-600 dark:hover:text-slate-300'}`} onClick={() => { handleOpenExport(); setIsMenuOpen(false); }} title={t.toolbar.io}><FileJson size={20}/></button>
+                         <button className={`p-3 rounded-xl transition-all flex flex-col items-center gap-1 ${showPhysicsSettings ? 'bg-slate-100 dark:bg-slate-700 text-teal-600' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-600 dark:hover:text-slate-300'}`} onClick={() => { setShowPhysicsSettings(!showPhysicsSettings); setIsMenuOpen(false); }} title={t.toolbar.physics} aria-label={t.toolbar.physics}><Wind size={20}/></button>
+                         <button className="p-3 rounded-xl text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-600 dark:hover:text-slate-300 transition-all flex flex-col items-center gap-1" onClick={handleResetView} title={t.toolbar.fitView} aria-label={t.toolbar.fitView}><Maximize size={20} /></button>
+                         <button className={`p-3 rounded-xl transition-all ${ioModalOpen ? 'bg-slate-100 dark:bg-slate-700 text-teal-600 dark:text-teal-400' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-600 dark:hover:text-slate-300'}`} onClick={() => { handleOpenExport(); setIsMenuOpen(false); }} title={t.toolbar.io} aria-label={t.toolbar.io}><FileJson size={20}/></button>
                          
                          <div className="w-px h-8 bg-slate-100 dark:bg-slate-700 mx-1 shrink-0" />
                          
-                         <button className={`p-3 rounded-xl transition-all flex flex-col items-center gap-1 ${isDarkMode ? 'text-yellow-400' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'}`} onClick={() => setIsDarkMode(!isDarkMode)} title={isDarkMode ? t.toolbar.lightMode : t.toolbar.darkMode}>{isDarkMode ? <Sun size={20} /> : <Moon size={20} />}</button>
-                         <button className={`p-3 rounded-xl transition-all flex flex-col items-center gap-1 ${isMuted ? 'text-slate-400 dark:text-slate-500' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-600 dark:hover:text-slate-300'}`} onClick={() => setIsMuted(!isMuted)} title={isMuted ? t.toolbar.muted : t.toolbar.soundOn}>{isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}</button>
-                         <button className={`p-3 rounded-xl transition-all flex flex-col items-center gap-1 ${helpModalOpen ? 'bg-teal-50 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-600 dark:hover:text-slate-300'}`} onClick={() => { setHelpModalOpen(true); setIsMenuOpen(false); }} title={t.toolbar.help}><BookOpen size={20}/></button>
-                         <button className="p-3 rounded-xl text-xs font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-teal-600 transition-all flex flex-col items-center justify-center gap-0.5" onClick={toggleLang} title={t.toolbar.lang}><span>{lang === 'zh' ? '中' : 'En'}</span></button>
+                         <button className={`p-3 rounded-xl transition-all flex flex-col items-center gap-1 ${isDarkMode ? 'text-yellow-400' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'}`} onClick={() => setIsDarkMode(!isDarkMode)} title={isDarkMode ? t.toolbar.lightMode : t.toolbar.darkMode} aria-label={isDarkMode ? t.toolbar.lightMode : t.toolbar.darkMode}>{isDarkMode ? <Sun size={20} /> : <Moon size={20} />}</button>
+                         <button className={`p-3 rounded-xl transition-all flex flex-col items-center gap-1 ${isMuted ? 'text-slate-400 dark:text-slate-500' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-600 dark:hover:text-slate-300'}`} onClick={() => setIsMuted(!isMuted)} title={isMuted ? t.toolbar.muted : t.toolbar.soundOn} aria-label={isMuted ? t.toolbar.muted : t.toolbar.soundOn}>{isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}</button>
+                         <button className={`p-3 rounded-xl transition-all flex flex-col items-center gap-1 ${helpModalOpen ? 'bg-teal-50 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-600 dark:hover:text-slate-300'}`} onClick={() => { setHelpModalOpen(true); setIsMenuOpen(false); }} title={t.toolbar.help} aria-label={t.toolbar.help}><BookOpen size={20}/></button>
+                         <button className="p-3 rounded-xl text-xs font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-teal-600 transition-all flex flex-col items-center justify-center gap-0.5" onClick={toggleLang} title={t.toolbar.lang} aria-label={t.toolbar.lang}><span>{lang === 'zh' ? '中' : 'En'}</span></button>
                      </div>
                  )}
              </div>
@@ -2588,7 +2311,7 @@ const App: React.FC = () => {
                         <span className="p-2 bg-teal-100 dark:bg-teal-900/30 rounded-lg text-teal-600 dark:text-teal-400"><BookOpen size={24}/></span>
                         {t.help.title}
                     </h2>
-                    <button onClick={() => setHelpModalOpen(false)} className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 transition-colors"><X size={20}/></button>
+                    <button onClick={() => setHelpModalOpen(false)} className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 transition-colors" aria-label="Close help"><X size={20}/></button>
                 </div>
                 <div className="overflow-y-auto p-6 space-y-8">
                     {/* Basic Section */}
@@ -2689,14 +2412,21 @@ const App: React.FC = () => {
       {/* IO Modal */}
       {ioModalOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center">
-            <div className="absolute inset-0 bg-slate-900/30 backdrop-blur-sm" onClick={() => setIoModalOpen(false)} />
+            <div className="absolute inset-0 bg-slate-900/30 backdrop-blur-sm" onClick={() => { setIoModalOpen(false); setIoError(null); }} />
             <div className="io-modal relative bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 w-[550px] animate-in fade-in zoom-in-95 duration-200 flex flex-col overflow-hidden" style={{ transformOrigin: 'center' }}>
                 <div className="flex border-b border-slate-100 dark:border-slate-700">
-                    <button onClick={() => setIoMode('export')} className={`flex-1 py-4 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${ioMode === 'export' ? 'text-teal-600 bg-teal-50/50 dark:bg-teal-900/20 border-b-2 border-teal-600' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'}`}><Code size={16}/> {t.io.tabCode}</button>
-                    <button onClick={() => setIoMode('file')} className={`flex-1 py-4 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${ioMode === 'file' ? 'text-teal-600 bg-teal-50/50 dark:bg-teal-900/20 border-b-2 border-teal-600' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'}`}><FileJson size={16}/> {t.io.tabFile}</button>
-                    <button onClick={() => setIoMode('history')} className={`flex-1 py-4 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${ioMode === 'history' ? 'text-teal-600 bg-teal-50/50 dark:bg-teal-900/20 border-b-2 border-teal-600' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'}`}><History size={16}/> {t.io.tabHistory}</button>
-                    <button onClick={() => setIoModalOpen(false)} className="absolute top-3 right-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full"><X size={18}/></button>
+                    <button onClick={() => { setIoMode('export'); setIoError(null); }} className={`flex-1 py-4 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${ioMode === 'export' ? 'text-teal-600 bg-teal-50/50 dark:bg-teal-900/20 border-b-2 border-teal-600' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'}`}><Code size={16}/> {t.io.tabCode}</button>
+                    <button onClick={() => { setIoMode('file'); setIoError(null); }} className={`flex-1 py-4 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${ioMode === 'file' ? 'text-teal-600 bg-teal-50/50 dark:bg-teal-900/20 border-b-2 border-teal-600' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'}`}><FileJson size={16}/> {t.io.tabFile}</button>
+                    <button onClick={() => { setIoMode('history'); setIoError(null); }} className={`flex-1 py-4 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${ioMode === 'history' ? 'text-teal-600 bg-teal-50/50 dark:bg-teal-900/20 border-b-2 border-teal-600' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'}`}><History size={16}/> {t.io.tabHistory}</button>
+                    <button onClick={() => { setIoModalOpen(false); setIoError(null); }} className="absolute top-3 right-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full"><X size={18}/></button>
                 </div>
+
+                {ioError && (
+                  <div className="mx-5 mt-3 flex items-center justify-between gap-2 py-2 px-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-sm">
+                    <span>{ioError}</span>
+                    <button type="button" onClick={() => setIoError(null)} className="p-1 hover:bg-red-100 dark:hover:bg-red-900/40 rounded" aria-label="Dismiss"><X size={14}/></button>
+                  </div>
+                )}
                 
                 <div className="p-5 flex-1 flex flex-col gap-4 h-[350px]">
                     {ioMode === 'export' && (
