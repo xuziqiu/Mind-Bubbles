@@ -17,7 +17,6 @@ import {
   Code,
   Copy,
   Check,
-  Download,
   Upload,
   Snowflake,
   Mouse,
@@ -31,14 +30,17 @@ import {
   Merge,
   Volume2,
   VolumeX,
-  Eye,
-  EyeOff,
   BookOpen,
   Keyboard,
   Palette,
-  Type,
   Maximize,
-  Languages
+  Moon,
+  Sun,
+  Search,
+  FileJson,
+  History,
+  Save,
+  FolderOpen
 } from 'lucide-react';
 
 // --- TRANSLATIONS ---
@@ -56,21 +58,23 @@ const TRANSLATIONS = {
     toolbar: {
       undo: "撤销 (Ctrl+Z)",
       redo: "重做 (Ctrl+Y)",
-      shapeCircle: "当前：圆形",
-      shapeRect: "当前：矩形",
+      shapeCircle: "形状：圆形",
+      shapeRect: "形状：矩形",
       magnetActive: "定位并吸引想法",
       magnetInactive: "在中心生成磁铁",
       frozen: "已冻结",
       floating: "已悬浮",
       physics: "物理参数设置",
       fitView: "适应画布",
-      zenMode: "禅模式 (隐藏界面)",
-      io: "导出/导入 Mermaid 代码",
+      io: "文件与数据",
       muted: "已静音",
       soundOn: "开启音效",
       help: "操作说明",
-      exitZen: "退出禅模式",
-      lang: "切换语言"
+      lang: "切换语言",
+      darkMode: "深色模式",
+      lightMode: "浅色模式",
+      search: "搜索 (Ctrl+F)",
+      menu: "更多设置"
     },
     physics: {
       title: "物理参数",
@@ -81,15 +85,26 @@ const TRANSLATIONS = {
       friction: "阻尼 (Friction)"
     },
     io: {
+      title: "数据管理",
+      tabCode: "代码 (Mermaid)",
+      tabFile: "文件 (JSON)",
+      tabHistory: "历史快照",
       export: "导出 Mermaid",
       import: "导入 Mermaid",
       exportImg: "导出为图片 (PNG)",
+      saveFile: "保存为文件 (.mb)",
+      loadFile: "打开文件",
       placeholderExport: "",
       placeholderImport: "粘贴 Mermaid 流程图代码...\n例如：\nA[想法] --> B((灵感))",
       copy: "复制",
       importBtn: "导入并生成脑图",
       importHint: "复制上方代码，可在 Notion 或 GitHub 中直接展示流程图。",
-      error: "未能识别有效的 Mermaid 代码。"
+      error: "未能识别有效的 Mermaid 代码。",
+      snapshotDesc: "自动保存最近 5 次的重要变更。",
+      restore: "恢复",
+      deleteSnap: "删除",
+      noSnaps: "暂无快照记录",
+      loadError: "文件格式错误"
     },
     context: {
       color: "颜色",
@@ -133,7 +148,15 @@ const TRANSLATIONS = {
       undoKey: "撤销",
       redoKey: "重做",
       confirmKey: "确认编辑",
-      newlineKey: "换行"
+      newlineKey: "换行",
+      tabKey: "创建子节点",
+      tabDesc: "Tab 键快速创建并连接子节点",
+      searchKey: "搜索",
+      searchDesc: "Ctrl+F 快速查找并定位气泡"
+    },
+    search: {
+      placeholder: "输入关键词搜索气泡...",
+      noResults: "未找到结果"
     }
   },
   en: {
@@ -157,13 +180,15 @@ const TRANSLATIONS = {
       floating: "Floating",
       physics: "Physics Settings",
       fitView: "Fit View",
-      zenMode: "Zen Mode (Hide UI)",
-      io: "Import / Export",
+      io: "Data & Files",
       muted: "Muted",
       soundOn: "Sound On",
       help: "Guide",
-      exitZen: "Exit Zen Mode",
-      lang: "Switch Language"
+      lang: "Switch Language",
+      darkMode: "Dark Mode",
+      lightMode: "Light Mode",
+      search: "Search (Ctrl+F)",
+      menu: "More Settings"
     },
     physics: {
       title: "Physics",
@@ -174,15 +199,26 @@ const TRANSLATIONS = {
       friction: "Friction"
     },
     io: {
+      title: "Data Manager",
+      tabCode: "Code (Mermaid)",
+      tabFile: "File (JSON)",
+      tabHistory: "Snapshots",
       export: "Export Mermaid",
       import: "Import Mermaid",
       exportImg: "Export Image (PNG)",
+      saveFile: "Save File (.mb)",
+      loadFile: "Open File",
       placeholderExport: "",
       placeholderImport: "Paste Mermaid code...\ne.g.,\nA[Idea] --> B((Spark))",
       copy: "Copy",
       importBtn: "Import & Generate",
       importHint: "Copy code above for Notion or GitHub.",
-      error: "Invalid Mermaid code."
+      error: "Invalid Mermaid code.",
+      snapshotDesc: "Auto-saves last 5 significant changes.",
+      restore: "Restore",
+      deleteSnap: "Delete",
+      noSnaps: "No snapshots found",
+      loadError: "Invalid File Format"
     },
     context: {
       color: "Color",
@@ -226,7 +262,15 @@ const TRANSLATIONS = {
       undoKey: "Undo",
       redoKey: "Redo",
       confirmKey: "Confirm",
-      newlineKey: "New Line"
+      newlineKey: "New Line",
+      tabKey: "Create Child",
+      tabDesc: "Tab to spawn and link new node",
+      searchKey: "Search",
+      searchDesc: "Ctrl+F to find nodes"
+    },
+    search: {
+      placeholder: "Search bubbles...",
+      noResults: "No results found"
     }
   }
 };
@@ -355,10 +399,13 @@ interface VisualEffect {
 interface HistoryState {
   nodes: GraphNode[];
   edges: Edge[];
+  timestamp?: number;
 }
 
 const STORAGE_KEY = 'mindbubbles_data_v1';
 const LANG_KEY = 'mindbubbles_lang';
+const THEME_KEY = 'mindbubbles_theme';
+const SNAPSHOTS_KEY = 'mindbubbles_snapshots';
 
 const App: React.FC = () => {
   const [nodes, setNodes] = useState<GraphNode[]>(INITIAL_NODES);
@@ -376,13 +423,41 @@ const App: React.FC = () => {
   const [past, setPast] = useState<HistoryState[]>([]);
   const [future, setFuture] = useState<HistoryState[]>([]);
   const [isMuted, setIsMuted] = useState(false);
-  const [isZenMode, setIsZenMode] = useState(false);
   const [helpModalOpen, setHelpModalOpen] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  
   const [lang, setLang] = useState<'zh' | 'en'>(() => {
       return (localStorage.getItem(LANG_KEY) as 'zh' | 'en') || 'zh';
   });
+  
+  // Theme State
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+      return localStorage.getItem(THEME_KEY) === 'dark';
+  });
+
+  // Search State
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Snapshot State
+  const [snapshots, setSnapshots] = useState<{timestamp: number, nodes: GraphNode[], edges: Edge[]}[]>(() => {
+      try {
+          const saved = localStorage.getItem(SNAPSHOTS_KEY);
+          return saved ? JSON.parse(saved) : [];
+      } catch { return []; }
+  });
 
   const t = TRANSLATIONS[lang];
+
+  useEffect(() => {
+      if (isDarkMode) {
+          document.body.classList.add('dark');
+      } else {
+          document.body.classList.remove('dark');
+      }
+      localStorage.setItem(THEME_KEY, isDarkMode ? 'dark' : 'light');
+  }, [isDarkMode]);
 
   const toggleLang = () => {
       setLang(prev => {
@@ -411,9 +486,10 @@ const App: React.FC = () => {
   const [defaultShape, setDefaultShape] = useState<'circle' | 'rectangle'>('circle');
 
   const [ioModalOpen, setIoModalOpen] = useState(false);
-  const [ioMode, setIoMode] = useState<'export' | 'import'>('export');
+  const [ioMode, setIoMode] = useState<'export' | 'import' | 'file' | 'history'>('export');
   const [ioText, setIoText] = useState('');
   const [copySuccess, setCopySuccess] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [physicsParams, setPhysicsParams] = useState(DEFAULT_PHYSICS);
 
@@ -627,6 +703,9 @@ const App: React.FC = () => {
         }
       } catch (e) {
         console.error("Failed to load saved data", e);
+        // Fallback to initial state if data is corrupted
+        setNodes(INITIAL_NODES);
+        setEdges(INITIAL_EDGES);
       }
     } else {
         if (lang !== 'zh') {
@@ -702,12 +781,34 @@ const App: React.FC = () => {
           const sim = simulationNodes.current.find(sn => sn.id === n.id);
           return sim ? { ...n, x: sim.x, y: sim.y } : n;
       });
-      const newPast = [...prev, { nodes: JSON.parse(JSON.stringify(snapshotNodes)), edges: JSON.parse(JSON.stringify(edges)) }];
+      const newPast = [...prev, { nodes: JSON.parse(JSON.stringify(snapshotNodes)), edges: JSON.parse(JSON.stringify(edges)), timestamp: Date.now() }];
       if (newPast.length > 30) newPast.shift(); 
       return newPast;
     });
     setFuture([]);
+    
+    // Auto Snapshot
+    setSnapshots(prev => {
+        const snapshotNodes = nodes.map(n => {
+            const sim = simulationNodes.current.find(sn => sn.id === n.id);
+            return sim ? { ...n, x: sim.x, y: sim.y } : n;
+        });
+        const newState = { timestamp: Date.now(), nodes: JSON.parse(JSON.stringify(snapshotNodes)), edges: JSON.parse(JSON.stringify(edges)) };
+        const newSnapshots = [newState, ...prev].slice(0, 5);
+        localStorage.setItem(SNAPSHOTS_KEY, JSON.stringify(newSnapshots));
+        return newSnapshots;
+    });
   }, [nodes, edges]);
+
+  const restoreSnapshot = (snapshot: any) => {
+      setNodes(snapshot.nodes);
+      setEdges(snapshot.edges);
+      // Re-sync simulation
+      simulationNodes.current = snapshot.nodes.map((n: GraphNode) => ({ ...n, vx: 0, vy: 0 }));
+      setIoModalOpen(false);
+      saveHistory(); // Create a standard undo point for the restore action
+      playSound('pop', isMuted);
+  };
 
   const handleUndo = useCallback(() => {
     if (past.length === 0) return;
@@ -746,20 +847,102 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (editingNodeId) {
-          if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            if (editRef.current) editRef.current.blur();
+      // Priority: Editing Inputs
+      if (editingNodeId || (editingEdgeId && (e.target as HTMLElement).tagName === 'INPUT')) {
+          // Note: Enter handling for node text is now in the contentEditable onKeyDown
+          if (editingEdgeId && e.key === 'Enter') {
+             e.preventDefault();
+             if (edgeEditRef.current) edgeEditRef.current.blur();
           }
           return; 
       }
-      if (editingEdgeId) {
-          if (e.key === 'Enter') {
-            e.preventDefault();
-            if (edgeEditRef.current) edgeEditRef.current.blur();
-          }
+      
+      // Search
+      if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+          e.preventDefault();
+          setIsSearchOpen(true);
+          setTimeout(() => searchInputRef.current?.focus(), 100);
           return;
       }
+
+      // Arrow Key Navigation
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key) && selectedNodeIds.size === 1 && !isSearchOpen) {
+          e.preventDefault();
+          const currentId = [...selectedNodeIds][0];
+          const current = simulationNodes.current.find(n => n.id === currentId);
+          if (!current) return;
+
+          let bestCandidate = null;
+          let minDist = Infinity;
+
+          simulationNodes.current.forEach(n => {
+              if (n.id === currentId) return;
+              const dx = n.x - current.x;
+              const dy = n.y - current.y;
+              let isValid = false;
+
+              if (e.key === 'ArrowUp') isValid = dy < 0 && Math.abs(dx) < Math.abs(dy) * 2;
+              if (e.key === 'ArrowDown') isValid = dy > 0 && Math.abs(dx) < Math.abs(dy) * 2;
+              if (e.key === 'ArrowLeft') isValid = dx < 0 && Math.abs(dy) < Math.abs(dx) * 2;
+              if (e.key === 'ArrowRight') isValid = dx > 0 && Math.abs(dy) < Math.abs(dx) * 2;
+
+              if (isValid) {
+                  const dist = dx*dx + dy*dy;
+                  if (dist < minDist) {
+                      minDist = dist;
+                      bestCandidate = n.id;
+                  }
+              }
+          });
+
+          if (bestCandidate) {
+              setSelectedNodeIds(new Set([bestCandidate]));
+              const n = simulationNodes.current.find(n => n.id === bestCandidate);
+              if (n) {
+                // Auto Pan if out of view
+                 // Optional: Smoothly pan to keep node in view
+              }
+          }
+      }
+
+      // Tab: Create Child Node
+      if (e.key === 'Tab' && selectedNodeIds.size === 1 && !isSearchOpen) {
+          e.preventDefault();
+          const parentId = [...selectedNodeIds][0];
+          const parent = simulationNodes.current.find(n => n.id === parentId);
+          if (!parent) return;
+
+          syncSimulationToState();
+          saveHistory();
+
+          // Determine angle: prefer away from other nodes
+          // Simple heuristic: Random angle for organic feel, or fixed if needed.
+          const angle = Math.random() * Math.PI * 2; 
+          const dist = 150;
+          const nx = parent.x + Math.cos(angle) * dist;
+          const ny = parent.y + Math.sin(angle) * dist;
+
+          const newNodeId = Math.random().toString(36).slice(2);
+          const newNode: GraphNode = {
+              id: newNodeId, text: '', x: nx, y: ny, color: parent.color,
+              shape: parent.shape, dimensions: { ...DEFAULT_DIMENSIONS }, vx: 0, vy: 0
+          };
+
+          const newEdge: Edge = {
+              id: Math.random().toString(36).slice(2),
+              source: parentId,
+              target: newNodeId
+          };
+
+          setNodes(prev => [...prev, newNode]);
+          setEdges(prev => [...prev, newEdge]);
+          setSelectedNodeIds(new Set([newNodeId]));
+          setEditingNodeId(newNodeId); // Focus immediately
+          playSound('pop', isMuted);
+          triggerEffect(nx, ny, 'create');
+      }
+
+      // Undo/Redo
       if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
         if (e.shiftKey) handleRedo(); else handleUndo();
         e.preventDefault();
@@ -768,25 +951,27 @@ const App: React.FC = () => {
          handleRedo(); e.preventDefault();
       }
 
-      // New Shortcuts: Delete / Backspace
+      // Delete
       if (e.key === 'Delete' || e.key === 'Backspace') {
-          if (selectedNodeIds.size > 0) {
+          if (selectedNodeIds.size > 0 && !isSearchOpen) {
               deleteNodes(selectedNodeIds);
           }
       }
 
-      // New Shortcut: Escape to deselect / close menus
+      // Escape
       if (e.key === 'Escape') {
           setSelectedNodeIds(new Set());
           setContextMenu(null);
           setHelpModalOpen(false);
           setShowPhysicsSettings(false);
           setIoModalOpen(false);
+          setIsSearchOpen(false);
+          setIsMenuOpen(false);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleUndo, handleRedo, editingNodeId, editingEdgeId, selectedNodeIds, deleteNodes]);
+  }, [handleUndo, handleRedo, editingNodeId, editingEdgeId, selectedNodeIds, deleteNodes, isSearchOpen]);
 
   const triggerEffect = (x: number, y: number, type: VisualEffect['type']) => {
       const id = Math.random().toString(36).slice(2);
@@ -1067,7 +1252,7 @@ const App: React.FC = () => {
                  el.setAttribute('stroke-width', '4');
                  el.setAttribute('stroke-opacity', '1');
              } else {
-                 el.setAttribute('stroke', '#cbd5e1');
+                 el.setAttribute('stroke', isDarkMode ? '#475569' : '#cbd5e1');
                  el.setAttribute('stroke-width', '2');
                  el.setAttribute('stroke-opacity', '1');
              }
@@ -1101,7 +1286,7 @@ const App: React.FC = () => {
     
     animationFrameId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(animationFrameId);
-  }, [isFloating, edges, editingNodeId, physicsParams, view.scale, hoveredEdgeId, editingEdgeId]);
+  }, [isFloating, edges, editingNodeId, physicsParams, view.scale, hoveredEdgeId, editingEdgeId, isDarkMode]);
 
 
   const handleExportImage = () => {
@@ -1129,6 +1314,13 @@ const App: React.FC = () => {
       clonedSvg.setAttribute('width', `${width}`);
       clonedSvg.setAttribute('height', `${height}`);
 
+      // Inject dark mode styles if needed for export
+      const styleEl = document.createElement("style");
+      styleEl.textContent = `
+        text { font-family: system-ui, sans-serif; }
+      `;
+      clonedSvg.prepend(styleEl);
+
       const foreignObjects = clonedSvg.querySelectorAll('foreignObject');
       foreignObjects.forEach(fo => {
           const parent = fo.parentElement;
@@ -1152,7 +1344,8 @@ const App: React.FC = () => {
           const isCircle = parent.querySelector('circle') !== null;
           
           const textEl = document.createElementNS("http://www.w3.org/2000/svg", "text");
-          textEl.setAttribute("fill", "#334155");
+          const textColor = isDarkMode ? "#f1f5f9" : "#334155";
+          textEl.setAttribute("fill", textColor);
           textEl.setAttribute("font-family", "system-ui, sans-serif");
           textEl.setAttribute("font-size", "14px");
           
@@ -1193,18 +1386,71 @@ const App: React.FC = () => {
           canvas.height = height * 2;
           const ctx = canvas.getContext('2d');
           if (ctx) {
+             // Fill background
+             ctx.fillStyle = isDarkMode ? '#0f172a' : '#f8fafc';
+             ctx.fillRect(0, 0, canvas.width, canvas.height);
+             
              ctx.scale(2, 2);
              ctx.drawImage(img, 0, 0, width, height);
              try {
                 const link = document.createElement('a');
                 link.href = canvas.toDataURL('image/png');
-                link.download = `mindbubbles-export.png`;
+                link.download = `mindbubbles-export-${Date.now()}.png`;
                 link.click();
              } catch (e) {}
           }
           URL.revokeObjectURL(url);
       };
       img.src = url;
+  };
+  
+  const handleSaveFile = () => {
+      // Sync simulation state before saving
+      syncSimulationToState();
+      const data = {
+          version: 1,
+          timestamp: Date.now(),
+          nodes: simulationNodes.current.map(n => ({...n, vx:0, vy:0})),
+          edges: edges,
+          view: view
+      };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `mindbubbles-${new Date().toISOString().slice(0,10)}.mb`;
+      link.click();
+      URL.revokeObjectURL(url);
+  };
+
+  const handleLoadFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+          try {
+              const data = JSON.parse(evt.target?.result as string);
+              if (data.nodes && Array.isArray(data.nodes)) {
+                  setNodes(data.nodes);
+                  setEdges(data.edges || []);
+                  if (data.view) setView(data.view);
+                  
+                  // Reset simulation
+                  simulationNodes.current = data.nodes.map((n: GraphNode) => ({ ...n, vx: 0, vy: 0 }));
+                  
+                  saveHistory();
+                  setIoModalOpen(false);
+                  playSound('pop', isMuted);
+              } else {
+                  alert(t.io.loadError);
+              }
+          } catch (err) {
+              alert(t.io.loadError);
+          }
+      };
+      reader.readAsText(file);
+      // Reset input
+      if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const handleOpenExport = () => {
@@ -1372,7 +1618,9 @@ const App: React.FC = () => {
       if ((e.target as HTMLElement).closest('button') || 
           (e.target as HTMLElement).closest('.io-modal') ||
           (e.target as HTMLElement).closest('.physics-panel') ||
-          (e.target as HTMLElement).closest('.help-modal')) return;
+          (e.target as HTMLElement).closest('.help-modal') ||
+          (e.target as HTMLElement).closest('.menu-popover') ||
+          (e.target as HTMLElement).closest('.search-bar')) return;
 
       const { x, y } = screenToCanvas(e.clientX, e.clientY);
       const clickedNode = getNodeAt(x, y);
@@ -1467,12 +1715,15 @@ const App: React.FC = () => {
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest('.physics-panel') || (e.target as HTMLElement).closest('.io-modal') || (e.target as HTMLElement).closest('.help-modal') || (e.target as HTMLElement).closest('.toolbar-container')) return; 
+    if ((e.target as HTMLElement).closest('.physics-panel') || (e.target as HTMLElement).closest('.io-modal') || (e.target as HTMLElement).closest('.help-modal') || (e.target as HTMLElement).closest('.menu-popover') || (e.target as HTMLElement).closest('.toolbar-wrapper') || (e.target as HTMLElement).closest('.search-bar')) return; 
     if ((e.target as HTMLElement).isContentEditable) return;
     if (editingEdgeId && (e.target as HTMLElement).tagName === 'INPUT') return; 
 
     initAudio(); 
     setHasInteracted(true);
+    // Close overlays if clicking on canvas
+    setIsSearchOpen(false);
+    setIsMenuOpen(false);
 
     if (editingNodeId) {
         if (editRef.current) {
@@ -1522,7 +1773,7 @@ const App: React.FC = () => {
       initialSelection: new Set(selectedNodeIds), 
       linkSources: [], 
       resizeNodeId: null, 
-      targetEdgeId: null,
+      targetEdgeId: null, 
       tightenStartTime: 0,
       tightenStartPos: null,
       initialDimensions: null,
@@ -1838,7 +2089,7 @@ const App: React.FC = () => {
   return (
     <div 
       ref={containerRef}
-      className={`relative w-screen h-screen overflow-hidden select-none text-slate-800 ${dragRef.current.mode === 'pan' ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'}`}
+      className={`relative w-screen h-screen overflow-hidden select-none text-slate-800 dark:text-slate-100 ${dragRef.current.mode === 'pan' ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'}`}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
@@ -1875,7 +2126,7 @@ const App: React.FC = () => {
                   <line
                     ref={el => { if (el) edgeRefs.current.set(edge.id, el); else edgeRefs.current.delete(edge.id); }}
                     x1={s.x} y1={s.y} x2={t.x} y2={t.y}
-                    stroke={hoveredEdgeId === edge.id ? "#0d9488" : "#cbd5e1"}
+                    stroke={hoveredEdgeId === edge.id ? "#0d9488" : (isDarkMode ? "#475569" : "#cbd5e1")}
                     strokeWidth={hoveredEdgeId === edge.id ? 4 : 2}
                     strokeLinecap="round"
                     className="transition-colors duration-200 pointer-events-auto cursor-pointer" 
@@ -1919,10 +2170,17 @@ const App: React.FC = () => {
             
             const showResizeHandle = !isDestruct && (nearHandleNodeId === node.id || (dragRef.current.mode === 'resize_node' && dragRef.current.resizeNodeId === node.id));
             
-            const nodeColor = node.color && node.color !== '#fff' ? node.color : '#cbd5e1'; 
+            // Dark mode color adjustments
+            let nodeColor = node.color && node.color !== '#fff' ? node.color : (isDarkMode ? '#334155' : '#cbd5e1'); 
+            if (node.color === '#fff' && !isDarkMode) nodeColor = '#cbd5e1'; // Default light mode border
+            if (node.color === '#fff' && isDarkMode) nodeColor = '#475569'; // Default dark mode border
+            
             const strokeColor = isDestruct ? '#ef4444' : (isSelected ? nodeColor : (isHovered ? nodeColor : nodeColor)); 
             const strokeWidth = isDestruct || isSelected ? 4 : 1.5; 
             const filterStyle = isSelected ? `drop-shadow(0 0 8px ${nodeColor}33)` : 'drop-shadow(0 2px 4px rgba(0,0,0,0.05))';
+            
+            const fillColor = isDestruct ? '#fecaca' : (isDarkMode ? '#1e293b' : 'white');
+            const textClass = isDestruct ? 'text-red-600' : (hasImage ? 'text-white' : (isDarkMode ? 'text-slate-100' : 'text-slate-700'));
 
             return (
               <g 
@@ -1931,13 +2189,13 @@ const App: React.FC = () => {
                 transform={`translate(${node.x}, ${node.y})`}
                 className="will-change-transform"
               >
-                <g className="animate-in">
+                <g className="node-appear">
                   {isMagnet ? (
                     <g className="origin-center">
-                      <circle r={radius * 1.4} className="animate-pulse" fill="#fef3c7" opacity="0.5" />
+                      <circle r={radius * 1.4} className="animate-pulse" fill={isDarkMode ? "#78350f" : "#fef3c7"} opacity="0.5" />
                       <circle 
                           r={radius}
-                          fill="#fffbeb" 
+                          fill={isDarkMode ? "#451a03" : "#fffbeb"} 
                           stroke={isSelected ? '#d97706' : '#f59e0b'}
                           strokeWidth={isSelected ? 3 : 2}
                           style={{ filter: 'drop-shadow(0 8px 16px rgba(245, 158, 11, 0.2))' }}
@@ -1961,7 +2219,7 @@ const App: React.FC = () => {
                                   </defs>
                                   <circle
                                       r={radius}
-                                      fill="white"
+                                      fill={fillColor}
                                       stroke={strokeColor}
                                       strokeWidth={strokeWidth}
                                       style={{ filter: filterStyle, transition: 'stroke 0.2s, filter 0.2s, stroke-width 0.2s' }}
@@ -1970,7 +2228,7 @@ const App: React.FC = () => {
                               ) : (
                                   <circle
                                       r={radius}
-                                      fill={isDestruct ? '#fecaca' : 'white'}
+                                      fill={fillColor}
                                       stroke={strokeColor}
                                       strokeWidth={strokeWidth}
                                       style={{ filter: filterStyle, transition: 'stroke 0.2s, filter 0.2s, stroke-width 0.2s' }}
@@ -1979,7 +2237,7 @@ const App: React.FC = () => {
 
                               {node.pinned && (
                                 <g transform={`translate(${radius * 0.707 - 10}, ${-radius * 0.707 + 10})`}>
-                                   <circle r="8" fill="white" stroke="#64748b" strokeWidth="1" />
+                                   <circle r="8" fill={isDarkMode ? "#0f172a" : "white"} stroke="#64748b" strokeWidth="1" />
                                    <Pin size={10} className="text-slate-500" x="-5" y="-5"/>
                                 </g>
                               )}
@@ -2008,14 +2266,14 @@ const App: React.FC = () => {
                                   x={-width/2} y={-height/2}
                                   width={width} height={height}
                                   rx={12} ry={12}
-                                  fill={isDestruct ? '#fecaca' : 'white'}
+                                  fill={fillColor}
                                   stroke={strokeColor}
                                   strokeWidth={strokeWidth}
                                   style={{ filter: filterStyle, transition: 'stroke 0.2s, filter 0.2s, stroke-width 0.2s' }}
                               />
                               {node.pinned && (
                                 <g transform={`translate(${width/2 - 12}, ${-height/2 + 12})`}>
-                                   <circle r="8" fill="white" stroke="#64748b" strokeWidth="1" />
+                                   <circle r="8" fill={isDarkMode ? "#0f172a" : "white"} stroke="#64748b" strokeWidth="1" />
                                    <Pin size={10} className="text-slate-500" x="-5" y="-5"/>
                                 </g>
                               )}
@@ -2060,7 +2318,7 @@ const App: React.FC = () => {
                               key="editor"
                               contentEditable
                               suppressContentEditableWarning
-                              className={`w-full bg-transparent outline-none font-medium pointer-events-auto ${hasImage ? 'text-white drop-shadow-md font-bold text-shadow' : 'text-slate-700'} ${isCircle ? 'text-center' : 'text-left'}`}
+                              className={`w-full bg-transparent outline-none font-medium pointer-events-auto ${hasImage ? 'text-white drop-shadow-md font-bold text-shadow' : textClass} ${isCircle ? 'text-center' : 'text-left'}`}
                               style={{ fontSize: '0.875rem', lineHeight: '1.5', minHeight: '1em', whiteSpace: 'pre-wrap', wordBreak: 'break-word', textShadow: hasImage ? '0 1px 2px rgba(0,0,0,0.8)' : 'none' }}
                               onBlur={(e) => {
                                   const text = e.currentTarget.innerText.trim();
@@ -2069,7 +2327,13 @@ const App: React.FC = () => {
                                   setNodes(prev => prev.map(n => n.id === editingNodeId ? { ...n, text: text } : n));
                                   setEditingNodeId(null);
                               }}
-                              onKeyDown={(e) => e.stopPropagation()}
+                              onKeyDown={(e) => {
+                                  e.stopPropagation();
+                                  if (e.key === 'Enter' && !e.shiftKey) {
+                                      e.preventDefault();
+                                      e.currentTarget.blur();
+                                  }
+                              }}
                               onMouseDown={e => e.stopPropagation()}
                               ref={el => {
                                   editRef.current = el; 
@@ -2090,7 +2354,7 @@ const App: React.FC = () => {
                           ) : (
                             <div 
                               key="viewer"
-                              className={`font-medium select-none ${isDestruct ? 'text-red-600' : (hasImage ? 'text-white' : 'text-slate-700')}`}
+                              className={`font-medium select-none ${textClass}`}
                               style={{ fontSize: '0.875rem', whiteSpace: 'pre-wrap', wordBreak: 'break-word', width: '100%', textShadow: hasImage ? '0 1px 3px rgba(0,0,0,0.8)' : 'none' }}
                             >
                               {node.text}
@@ -2108,10 +2372,58 @@ const App: React.FC = () => {
       </svg>
       
       {/* Empty State Call to Action */}
-      {!isZenMode && nodes.length === 0 && (
+      {nodes.length === 0 && (
           <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-0 opacity-40">
-              <div className="text-2xl font-light text-slate-400 tracking-widest uppercase text-center animate-pulse">
+              <div className="text-2xl font-light text-slate-400 dark:text-slate-600 tracking-widest uppercase text-center animate-pulse">
                   {t.canvas.emptyState}
+              </div>
+          </div>
+      )}
+
+      {/* SEARCH BAR OVERLAY */}
+      {isSearchOpen && (
+          <div className="fixed top-24 right-8 z-[60] search-bar animate-in fade-in slide-in-from-top-4">
+              <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Search size={18} className="text-slate-400 group-focus-within:text-teal-500 transition-colors"/>
+                  </div>
+                  <input
+                      ref={searchInputRef}
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => {
+                          const val = e.target.value;
+                          setSearchQuery(val);
+                          // Auto focus logic
+                          if (val.trim()) {
+                              const found = nodes.find(n => n.text.toLowerCase().includes(val.toLowerCase()));
+                              if (found) {
+                                  setSelectedNodeIds(new Set([found.id]));
+                                  setView(prev => ({ ...prev, translateX: (window.innerWidth / 2) - (found.x * prev.scale), translateY: (window.innerHeight / 2) - (found.y * prev.scale) }));
+                              }
+                          }
+                      }}
+                      placeholder={t.search.placeholder}
+                      className="w-64 bg-white/90 dark:bg-slate-800/90 backdrop-blur shadow-xl border border-slate-200 dark:border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-teal-500 dark:text-slate-100 transition-all"
+                  />
+                  <div className="absolute top-12 right-0 bg-white dark:bg-slate-800 shadow-xl rounded-lg overflow-hidden border border-slate-100 dark:border-slate-700 w-64 max-h-60 overflow-y-auto">
+                      {nodes.filter(n => searchQuery && n.text.toLowerCase().includes(searchQuery.toLowerCase())).map(n => (
+                          <div 
+                            key={n.id} 
+                            className="px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer text-xs text-slate-600 dark:text-slate-300 border-b border-slate-50 dark:border-slate-700/50 last:border-0 truncate"
+                            onClick={() => {
+                                setSelectedNodeIds(new Set([n.id]));
+                                setView(prev => ({ ...prev, translateX: (window.innerWidth / 2) - (n.x * prev.scale), translateY: (window.innerHeight / 2) - (n.y * prev.scale) }));
+                                setIsSearchOpen(false);
+                            }}
+                          >
+                              {n.text}
+                          </div>
+                      ))}
+                      {searchQuery && nodes.filter(n => n.text.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
+                          <div className="px-4 py-2 text-xs text-slate-400 text-center">{t.search.noResults}</div>
+                      )}
+                  </div>
               </div>
           </div>
       )}
@@ -2154,9 +2466,9 @@ const App: React.FC = () => {
                                        e.stopPropagation();
                                        setEditingEdgeId(edge.id);
                                    }}
-                                   className="text-[11px] font-bold text-slate-500 cursor-text hover:text-teal-600 transition-colors whitespace-nowrap select-none px-1 leading-none py-0.5"
+                                   className="text-[11px] font-bold text-slate-500 dark:text-slate-400 cursor-text hover:text-teal-600 transition-colors whitespace-nowrap select-none px-1 leading-none py-0.5"
                                    style={{ 
-                                       textShadow: '0 0 3px white, 0 0 3px white, 0 0 3px white, 0 0 3px white, 0 0 6px white', 
+                                       textShadow: isDarkMode ? '0 0 3px #0f172a, 0 0 3px #0f172a' : '0 0 3px white, 0 0 3px white', 
                                        backgroundColor: 'transparent',
                                    }}
                                >
@@ -2170,196 +2482,176 @@ const App: React.FC = () => {
       </div>
 
       {/* Immersive Center Guide - Re-designed for 'Artistic Minimalist' style in CHINESE */}
-      {!isZenMode && (
-          <div 
-            className={`fixed top-[25%] left-1/2 -translate-x-1/2 pointer-events-none z-0 transition-opacity duration-1000 ease-out flex flex-col items-center ${nodes.length >= 2 ? 'opacity-0' : 'opacity-100'}`}
-          >
-             {/* Title: Huge, Thin, Subtle, Wide Spacing */}
-            <h1 className="text-8xl font-light text-slate-200 tracking-[0.5em] mb-16 select-none whitespace-nowrap" style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-                {t.appTitle}
-            </h1>
-            
-            {/* Guide: Minimalist Row with Thin Dividers */}
-            <div className="flex items-center gap-12 text-slate-300 font-light text-lg tracking-widest whitespace-nowrap">
-                <div className="flex flex-col items-center gap-2 group">
-                    <MousePointer2 strokeWidth={1} size={32} className="text-slate-400 group-hover:text-teal-400 transition-colors duration-500" />
-                    <span className="text-xs uppercase text-slate-400">{t.tips.drag}</span>
-                </div>
-                
-                <div className="h-12 w-px bg-slate-200/50" />
-                
-                <div className="flex flex-col items-center gap-2 group">
-                    <Move strokeWidth={1} size={32} className="text-slate-400 group-hover:text-teal-400 transition-colors duration-500" />
-                    <span className="text-xs uppercase text-slate-400">{t.tips.rightClick}</span>
-                </div>
-                
-                <div className="h-12 w-px bg-slate-200/50" />
-                
-                <div className="flex flex-col items-center gap-2 group">
-                    <Mouse strokeWidth={1} size={32} className="text-slate-400 group-hover:text-teal-400 transition-colors duration-500" />
-                    <span className="text-xs uppercase text-slate-400">{t.tips.pan}</span>
-                </div>
+      <div 
+        className={`fixed top-[25%] left-1/2 -translate-x-1/2 pointer-events-none z-0 transition-opacity duration-1000 ease-out flex flex-col items-center ${nodes.length >= 2 ? 'opacity-0' : 'opacity-100'}`}
+      >
+         {/* Title: Huge, Thin, Subtle, Wide Spacing */}
+        <h1 className="text-8xl font-light text-slate-200 dark:text-slate-800 tracking-[0.5em] mb-16 select-none whitespace-nowrap transition-colors duration-500" style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+            {t.appTitle}
+        </h1>
+        
+        {/* Guide: Minimalist Row with Thin Dividers */}
+        <div className="flex items-center gap-12 text-slate-300 dark:text-slate-700 font-light text-lg tracking-widest whitespace-nowrap transition-colors duration-500">
+            <div className="flex flex-col items-center gap-2 group">
+                <MousePointer2 strokeWidth={1} size={32} className="text-slate-400 dark:text-slate-600 group-hover:text-teal-400 transition-colors duration-500" />
+                <span className="text-xs uppercase text-slate-400 dark:text-slate-600">{t.tips.drag}</span>
             </div>
-          </div>
-      )}
+            
+            <div className="h-12 w-px bg-slate-200/50 dark:bg-slate-700/50" />
+            
+            <div className="flex flex-col items-center gap-2 group">
+                <Move strokeWidth={1} size={32} className="text-slate-400 dark:text-slate-600 group-hover:text-teal-400 transition-colors duration-500" />
+                <span className="text-xs uppercase text-slate-400 dark:text-slate-600">{t.tips.rightClick}</span>
+            </div>
+            
+            <div className="h-12 w-px bg-slate-200/50 dark:bg-slate-700/50" />
+            
+            <div className="flex flex-col items-center gap-2 group">
+                <Mouse strokeWidth={1} size={32} className="text-slate-400 dark:text-slate-600 group-hover:text-teal-400 transition-colors duration-500" />
+                <span className="text-xs uppercase text-slate-400 dark:text-slate-600">{t.tips.pan}</span>
+            </div>
+        </div>
+      </div>
 
       {/* Physics Settings Panel */}
-      {!isZenMode && showPhysicsSettings && (
-        <div className="physics-panel fixed top-6 right-6 w-64 bg-white/90 backdrop-blur shadow-xl border border-slate-200 rounded-xl p-4 animate-in z-50">
+      {showPhysicsSettings && (
+        <div className="physics-panel fixed top-4 right-8 w-64 bg-white/90 dark:bg-slate-800/90 backdrop-blur shadow-xl border border-slate-200 dark:border-slate-700 rounded-xl p-4 animate-in fade-in zoom-in-95 duration-200 z-50">
           <div className="flex items-center justify-between mb-4">
-             <h3 className="text-sm font-bold text-slate-700 flex items-center gap-2"><Wind size={16} className="text-teal-500"/> {t.physics.title}</h3>
+             <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2"><Wind size={16} className="text-teal-500"/> {t.physics.title}</h3>
              <button onClick={() => setShowPhysicsSettings(false)} className="text-slate-400 hover:text-slate-600"><X size={16}/></button>
           </div>
           <div className="space-y-4">
-             <div className="space-y-1"><div className="flex justify-between text-xs text-slate-500"><span>{t.physics.repulsion}</span><span>{physicsParams.repulsion}</span></div><input type="range" min="0" max="100" value={physicsParams.repulsion} onChange={(e) => setPhysicsParams(p => ({...p, repulsion: Number(e.target.value)}))} className="w-full accent-teal-500 h-1 bg-slate-100 rounded-lg appearance-none cursor-pointer"/></div>
-             <div className="space-y-1"><div className="flex justify-between text-xs text-slate-500"><span>{t.physics.length}</span><span>{physicsParams.length}</span></div><input type="range" min="0" max="100" value={physicsParams.length} onChange={(e) => setPhysicsParams(p => ({...p, length: Number(e.target.value)}))} className="w-full accent-teal-500 h-1 bg-slate-100 rounded-lg appearance-none cursor-pointer"/></div>
-             <div className="space-y-1"><div className="flex justify-between text-xs text-slate-500"><span>{t.physics.stiffness}</span><span>{physicsParams.stiffness}</span></div><input type="range" min="0" max="100" value={physicsParams.stiffness} onChange={(e) => setPhysicsParams(p => ({...p, stiffness: Number(e.target.value)}))} className="w-full accent-teal-500 h-1 bg-slate-100 rounded-lg appearance-none cursor-pointer"/></div>
-             <div className="space-y-1"><div className="flex justify-between text-xs text-slate-500"><span>{t.physics.gravity}</span><span>{physicsParams.gravity}</span></div><input type="range" min="0" max="100" value={physicsParams.gravity} onChange={(e) => setPhysicsParams(p => ({...p, gravity: Number(e.target.value)}))} className="w-full accent-teal-500 h-1 bg-slate-100 rounded-lg appearance-none cursor-pointer"/></div>
-             <div className="space-y-1"><div className="flex justify-between text-xs text-slate-500"><span>{t.physics.friction}</span><span>{physicsParams.friction}</span></div><input type="range" min="0" max="100" value={physicsParams.friction} onChange={(e) => setPhysicsParams(p => ({...p, friction: Number(e.target.value)}))} className="w-full accent-teal-500 h-1 bg-slate-100 rounded-lg appearance-none cursor-pointer"/></div>
+             <div className="space-y-1"><div className="flex justify-between text-xs text-slate-500 dark:text-slate-400"><span>{t.physics.repulsion}</span><span>{physicsParams.repulsion}</span></div><input type="range" min="0" max="100" value={physicsParams.repulsion} onChange={(e) => setPhysicsParams(p => ({...p, repulsion: Number(e.target.value)}))} className="w-full accent-teal-500 h-1 bg-slate-100 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer"/></div>
+             <div className="space-y-1"><div className="flex justify-between text-xs text-slate-500 dark:text-slate-400"><span>{t.physics.length}</span><span>{physicsParams.length}</span></div><input type="range" min="0" max="100" value={physicsParams.length} onChange={(e) => setPhysicsParams(p => ({...p, length: Number(e.target.value)}))} className="w-full accent-teal-500 h-1 bg-slate-100 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer"/></div>
+             <div className="space-y-1"><div className="flex justify-between text-xs text-slate-500 dark:text-slate-400"><span>{t.physics.stiffness}</span><span>{physicsParams.stiffness}</span></div><input type="range" min="0" max="100" value={physicsParams.stiffness} onChange={(e) => setPhysicsParams(p => ({...p, stiffness: Number(e.target.value)}))} className="w-full accent-teal-500 h-1 bg-slate-100 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer"/></div>
+             <div className="space-y-1"><div className="flex justify-between text-xs text-slate-500 dark:text-slate-400"><span>{t.physics.gravity}</span><span>{physicsParams.gravity}</span></div><input type="range" min="0" max="100" value={physicsParams.gravity} onChange={(e) => setPhysicsParams(p => ({...p, gravity: Number(e.target.value)}))} className="w-full accent-teal-500 h-1 bg-slate-100 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer"/></div>
+             <div className="space-y-1"><div className="flex justify-between text-xs text-slate-500 dark:text-slate-400"><span>{t.physics.friction}</span><span>{physicsParams.friction}</span></div><input type="range" min="0" max="100" value={physicsParams.friction} onChange={(e) => setPhysicsParams(p => ({...p, friction: Number(e.target.value)}))} className="w-full accent-teal-500 h-1 bg-slate-100 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer"/></div>
           </div>
         </div>
       )}
 
-      {/* Help / Instruction Manual Modal */}
+      {/* Main Toolbar - Fixed High Frequency Tools */}
+      <div className="toolbar-wrapper fixed bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-2 z-50 max-w-[95vw]">
+         
+         <div className="toolbar-scroll-area bg-white/90 dark:bg-slate-800/90 backdrop-blur shadow-2xl border border-slate-200 dark:border-slate-700 rounded-2xl p-2 flex items-center gap-1">
+            {/* History */}
+            <button className={`p-3 rounded-xl transition-all ${past.length > 0 ? 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700' : 'text-slate-300 dark:text-slate-600 cursor-not-allowed'}`} onClick={handleUndo} title={t.toolbar.undo} disabled={past.length === 0}><Undo2 size={20} /></button>
+            <button className={`p-3 rounded-xl transition-all ${future.length > 0 ? 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700' : 'text-slate-300 dark:text-slate-600 cursor-not-allowed'}`} onClick={handleRedo} title={t.toolbar.redo} disabled={future.length === 0}><Redo2 size={20} /></button>
+            
+            <div className="w-px h-8 bg-slate-100 dark:bg-slate-700 mx-1 shrink-0" />
+            
+            {/* Core Tools */}
+            <button className="p-3 rounded-xl text-slate-400 dark:text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-600 dark:hover:text-slate-300 transition-all" onClick={() => { setIsSearchOpen(!isSearchOpen); setTimeout(() => searchInputRef.current?.focus(), 100); }} title={t.toolbar.search}><Search size={20} /></button>
+            <button className={`p-3 rounded-xl transition-all ${'bg-teal-50 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 shadow-sm'}`} onClick={() => setDefaultShape(prev => prev === 'circle' ? 'rectangle' : 'circle')} title={defaultShape === 'circle' ? t.toolbar.shapeCircle : t.toolbar.shapeRect}> {defaultShape === 'circle' ? <Circle size={20} /> : <Square size={20} />} </button>
+            <button className={`p-3 rounded-xl transition-all ${hasMagnet ? 'bg-amber-100 text-amber-600 shadow-sm ring-2 ring-amber-200 ring-offset-1' : 'text-slate-400 dark:text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-600 dark:hover:text-slate-300'}`} onClick={handleMagnetClick} title={hasMagnet ? t.toolbar.magnetActive : t.toolbar.magnetInactive}><Magnet size={20} className={hasMagnet ? "" : ""}/></button>
+            <button className={`p-3 rounded-xl transition-all ${!isFloating ? 'bg-teal-50 text-teal-600' : 'text-slate-400 dark:text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-600 dark:hover:text-slate-300'}`} onClick={() => setIsFloating(!isFloating)} title={!isFloating ? t.toolbar.frozen : t.toolbar.floating}><Snowflake size={20} /></button>
+
+            <div className="w-px h-8 bg-slate-100 dark:bg-slate-700 mx-1 shrink-0" />
+
+            {/* Menu Toggle */}
+            <div className="relative shrink-0">
+                 <button 
+                    className={`p-3 rounded-xl transition-all ${isMenuOpen ? 'bg-slate-100 dark:bg-slate-700 text-indigo-600' : 'text-slate-400 dark:text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-indigo-600'}`} 
+                    onClick={() => setIsMenuOpen(!isMenuOpen)} 
+                    title={t.toolbar.menu}
+                 >
+                     <Settings2 size={20} />
+                 </button>
+
+                 {/* Horizontal Menu Popover - Expands Right - Adjusted for perfect alignment */}
+                 {isMenuOpen && (
+                     <div className="absolute left-full top-1/2 -translate-y-1/2 ml-4 flex items-center gap-1 bg-white/90 dark:bg-slate-800/90 backdrop-blur-xl shadow-2xl border border-slate-200 dark:border-slate-700 rounded-2xl p-2 animate-in fade-in slide-in-from-left-2 z-50 menu-popover whitespace-nowrap">
+                         {/* Secondary Tools */}
+                         <button className={`p-3 rounded-xl transition-all flex flex-col items-center gap-1 ${showPhysicsSettings ? 'bg-slate-100 dark:bg-slate-700 text-teal-600' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-600 dark:hover:text-slate-300'}`} onClick={() => { setShowPhysicsSettings(!showPhysicsSettings); setIsMenuOpen(false); }} title={t.toolbar.physics}><Wind size={20}/></button>
+                         <button className="p-3 rounded-xl text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-600 dark:hover:text-slate-300 transition-all flex flex-col items-center gap-1" onClick={handleResetView} title={t.toolbar.fitView}><Maximize size={20} /></button>
+                         <button className={`p-3 rounded-xl transition-all ${ioModalOpen ? 'bg-slate-100 dark:bg-slate-700 text-teal-600 dark:text-teal-400' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-600 dark:hover:text-slate-300'}`} onClick={() => { handleOpenExport(); setIsMenuOpen(false); }} title={t.toolbar.io}><FileJson size={20}/></button>
+                         
+                         <div className="w-px h-8 bg-slate-100 dark:bg-slate-700 mx-1 shrink-0" />
+                         
+                         <button className={`p-3 rounded-xl transition-all flex flex-col items-center gap-1 ${isDarkMode ? 'text-yellow-400' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'}`} onClick={() => setIsDarkMode(!isDarkMode)} title={isDarkMode ? t.toolbar.lightMode : t.toolbar.darkMode}>{isDarkMode ? <Sun size={20} /> : <Moon size={20} />}</button>
+                         <button className={`p-3 rounded-xl transition-all flex flex-col items-center gap-1 ${isMuted ? 'text-slate-400 dark:text-slate-500' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-600 dark:hover:text-slate-300'}`} onClick={() => setIsMuted(!isMuted)} title={isMuted ? t.toolbar.muted : t.toolbar.soundOn}>{isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}</button>
+                         <button className={`p-3 rounded-xl transition-all flex flex-col items-center gap-1 ${helpModalOpen ? 'bg-teal-50 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-600 dark:hover:text-slate-300'}`} onClick={() => { setHelpModalOpen(true); setIsMenuOpen(false); }} title={t.toolbar.help}><BookOpen size={20}/></button>
+                         <button className="p-3 rounded-xl text-xs font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-teal-600 transition-all flex flex-col items-center justify-center gap-0.5" onClick={toggleLang} title={t.toolbar.lang}><span>{lang === 'zh' ? '中' : 'En'}</span></button>
+                     </div>
+                 )}
+             </div>
+         </div>
+      </div>
+      
+      {/* Help Modal */}
       {helpModalOpen && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-              <div className="absolute inset-0 bg-slate-900/20 backdrop-blur-sm" onClick={() => setHelpModalOpen(false)} />
-              <div className="help-modal relative bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-100 w-full max-w-2xl animate-in overflow-hidden">
-                  <div className="flex items-center justify-between p-6 border-b border-slate-100">
-                      <h2 className="text-xl font-light text-slate-800 tracking-widest flex items-center gap-3">
-                          <BookOpen size={24} className="text-teal-600"/> 
-                          {t.help.title}
-                      </h2>
-                      <button onClick={() => setHelpModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={24}/></button>
-                  </div>
-                  <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-10">
-                      <div className="space-y-6">
-                          <div className="space-y-3">
-                              <h3 className="text-sm font-bold text-teal-600 uppercase tracking-widest mb-4">{t.help.basic}</h3>
-                              <div className="flex items-start gap-3 text-slate-600">
-                                  <div className="mt-1 p-1 bg-slate-100 rounded"><MousePointer2 size={16}/></div>
-                                  <div>
-                                      <p className="font-medium">{t.help.drag}</p>
-                                      <p className="text-xs text-slate-400 mt-0.5">{t.help.dragDesc}</p>
-                                  </div>
-                              </div>
-                              <div className="flex items-start gap-3 text-slate-600">
-                                  <div className="mt-1 p-1 bg-slate-100 rounded"><Plus size={16}/></div>
-                                  <div>
-                                      <p className="font-medium">{t.help.create}</p>
-                                      <p className="text-xs text-slate-400 mt-0.5">{t.help.createDesc}</p>
-                                  </div>
-                              </div>
-                              <div className="flex items-start gap-3 text-slate-600">
-                                  <div className="mt-1 p-1 bg-slate-100 rounded"><Move size={16}/></div>
-                                  <div>
-                                      <p className="font-medium">{t.help.right}</p>
-                                      <p className="text-xs text-slate-400 mt-0.5">{t.help.rightDesc}</p>
-                                  </div>
-                              </div>
-                              <div className="flex items-start gap-3 text-slate-600">
-                                  <div className="mt-1 p-1 bg-slate-100 rounded"><Type size={16}/></div>
-                                  <div>
-                                      <p className="font-medium">{t.help.edit}</p>
-                                      <p className="text-xs text-slate-400 mt-0.5">{t.help.editDesc}</p>
-                                  </div>
-                              </div>
-                          </div>
-                      </div>
-                      
-                      <div className="space-y-6">
-                          <div className="space-y-3">
-                              <h3 className="text-sm font-bold text-teal-600 uppercase tracking-widest mb-4">{t.help.advanced}</h3>
-                              <div className="flex items-start gap-3 text-slate-600">
-                                  <div className="mt-1 p-1 bg-slate-100 rounded"><ImageIcon size={16}/></div>
-                                  <div>
-                                      <p className="font-medium">{t.help.paste}</p>
-                                      <p className="text-xs text-slate-400 mt-0.5">{t.help.pasteDesc}</p>
-                                  </div>
-                              </div>
-                              <div className="flex items-start gap-3 text-slate-600">
-                                  <div className="mt-1 p-1 bg-slate-100 rounded"><Merge size={16}/></div>
-                                  <div>
-                                      <p className="font-medium">{t.help.merge}</p>
-                                      <p className="text-xs text-slate-400 mt-0.5">{t.help.mergeDesc}</p>
-                                  </div>
-                              </div>
-                              <div className="flex items-start gap-3 text-slate-600">
-                                  <div className="mt-1 p-1 bg-slate-100 rounded"><Trash2 size={16}/></div>
-                                  <div>
-                                      <p className="font-medium">{t.help.trash}</p>
-                                      <p className="text-xs text-slate-400 mt-0.5">{t.help.trashDesc}</p>
-                                  </div>
-                              </div>
-                              <div className="flex items-start gap-3 text-slate-600">
-                                  <div className="mt-1 p-1 bg-slate-100 rounded"><Magnet size={16}/></div>
-                                  <div>
-                                      <p className="font-medium">{t.help.magnet}</p>
-                                      <p className="text-xs text-slate-400 mt-0.5">{t.help.magnetDesc}</p>
-                                  </div>
-                              </div>
-                          </div>
-                      </div>
-                  </div>
-                  <div className="bg-slate-50 p-6 border-t border-slate-100">
-                       <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Keyboard size={14}/> {t.help.shortcuts}</h3>
-                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs font-mono text-slate-600">
-                           <div className="flex items-center justify-between bg-white px-3 py-2 rounded border border-slate-200"><span>{t.help.undoKey}</span> <span className="text-slate-400">Ctrl+Z</span></div>
-                           <div className="flex items-center justify-between bg-white px-3 py-2 rounded border border-slate-200"><span>{t.help.redoKey}</span> <span className="text-slate-400">Ctrl+Y</span></div>
-                           <div className="flex items-center justify-between bg-white px-3 py-2 rounded border border-slate-200"><span>{t.help.confirmKey}</span> <span className="text-slate-400">Enter</span></div>
-                           <div className="flex items-center justify-between bg-white px-3 py-2 rounded border border-slate-200"><span>{t.help.newlineKey}</span> <span className="text-slate-400">Shift+Ent</span></div>
-                       </div>
-                  </div>
-              </div>
-          </div>
-      )}
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 help-modal">
+            <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setHelpModalOpen(false)} />
+            <div className="relative bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 w-full max-w-2xl max-h-[85vh] overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col">
+                <div className="flex items-center justify-between p-6 border-b border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 backdrop-blur-xl sticky top-0 z-10">
+                    <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-3">
+                        <span className="p-2 bg-teal-100 dark:bg-teal-900/30 rounded-lg text-teal-600 dark:text-teal-400"><BookOpen size={24}/></span>
+                        {t.help.title}
+                    </h2>
+                    <button onClick={() => setHelpModalOpen(false)} className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 transition-colors"><X size={20}/></button>
+                </div>
+                <div className="overflow-y-auto p-6 space-y-8">
+                    {/* Basic Section */}
+                    <section>
+                        <h3 className="text-sm font-bold text-teal-600 dark:text-teal-400 uppercase tracking-wider mb-4 flex items-center gap-2"><MousePointer2 size={16}/> {t.help.basic}</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="p-4 bg-slate-50 dark:bg-slate-700/30 rounded-xl border border-slate-100 dark:border-slate-700">
+                                <div className="font-bold text-slate-700 dark:text-slate-200 mb-1">{t.help.drag}</div>
+                                <div className="text-sm text-slate-500 dark:text-slate-400">{t.help.dragDesc}</div>
+                            </div>
+                            <div className="p-4 bg-slate-50 dark:bg-slate-700/30 rounded-xl border border-slate-100 dark:border-slate-700">
+                                <div className="font-bold text-slate-700 dark:text-slate-200 mb-1">{t.help.create}</div>
+                                <div className="text-sm text-slate-500 dark:text-slate-400">{t.help.createDesc}</div>
+                            </div>
+                            <div className="p-4 bg-slate-50 dark:bg-slate-700/30 rounded-xl border border-slate-100 dark:border-slate-700">
+                                <div className="font-bold text-slate-700 dark:text-slate-200 mb-1">{t.help.right}</div>
+                                <div className="text-sm text-slate-500 dark:text-slate-400">{t.help.rightDesc}</div>
+                            </div>
+                            <div className="p-4 bg-slate-50 dark:bg-slate-700/30 rounded-xl border border-slate-100 dark:border-slate-700">
+                                <div className="font-bold text-slate-700 dark:text-slate-200 mb-1">{t.help.edit}</div>
+                                <div className="text-sm text-slate-500 dark:text-slate-400">{t.help.editDesc}</div>
+                            </div>
+                        </div>
+                    </section>
 
-      {/* Main Toolbar */}
-      {!isZenMode ? (
-          <div className="toolbar-container fixed bottom-8 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur shadow-2xl border border-slate-200 rounded-2xl p-2 flex items-center gap-1 z-50 transition-all duration-300">
-             {/* Group 1: History */}
-             <button className={`p-3 rounded-xl transition-all ${past.length > 0 ? 'text-slate-600 hover:bg-slate-50' : 'text-slate-300 cursor-not-allowed'}`} onClick={handleUndo} title={t.toolbar.undo} disabled={past.length === 0}><Undo2 size={20} /></button>
-             <button className={`p-3 rounded-xl transition-all ${future.length > 0 ? 'text-slate-600 hover:bg-slate-50' : 'text-slate-300 cursor-not-allowed'}`} onClick={handleRedo} title={t.toolbar.redo} disabled={future.length === 0}><Redo2 size={20} /></button>
-             
-             <div className="w-px h-8 bg-slate-100 mx-1" />
-             
-             {/* Group 2: Simulation/Tools */}
-             <button className={`p-3 rounded-xl transition-all ${'bg-teal-50 text-teal-600 shadow-sm'}`} onClick={() => setDefaultShape(prev => prev === 'circle' ? 'rectangle' : 'circle')} title={defaultShape === 'circle' ? t.toolbar.shapeCircle : t.toolbar.shapeRect}> {defaultShape === 'circle' ? <Circle size={20} /> : <Square size={20} />} </button>
-             <button className={`p-3 rounded-xl transition-all ${hasMagnet ? 'bg-amber-100 text-amber-600 shadow-sm ring-2 ring-amber-200 ring-offset-1' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`} onClick={handleMagnetClick} title={hasMagnet ? t.toolbar.magnetActive : t.toolbar.magnetInactive}><Magnet size={20} className={hasMagnet ? "" : ""}/></button>
-             <button className={`p-3 rounded-xl transition-all ${!isFloating ? 'bg-teal-50 text-teal-600 shadow-sm ring-1 ring-teal-200' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`} onClick={() => setIsFloating(!isFloating)} title={!isFloating ? t.toolbar.frozen : t.toolbar.floating}><Snowflake size={20} /></button>
-             <button className={`p-3 rounded-xl transition-all ${showPhysicsSettings ? 'bg-slate-100 text-slate-700' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`} onClick={() => setShowPhysicsSettings(!showPhysicsSettings)} title={t.toolbar.physics}><Settings2 size={20} /></button>
+                    {/* Advanced Section */}
+                    <section>
+                        <h3 className="text-sm font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider mb-4 flex items-center gap-2"><Target size={16}/> {t.help.advanced}</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="p-4 bg-slate-50 dark:bg-slate-700/30 rounded-xl border border-slate-100 dark:border-slate-700">
+                                <div className="font-bold text-slate-700 dark:text-slate-200 mb-1">{t.help.paste}</div>
+                                <div className="text-sm text-slate-500 dark:text-slate-400">{t.help.pasteDesc}</div>
+                            </div>
+                            <div className="p-4 bg-slate-50 dark:bg-slate-700/30 rounded-xl border border-slate-100 dark:border-slate-700">
+                                <div className="font-bold text-slate-700 dark:text-slate-200 mb-1">{t.help.merge}</div>
+                                <div className="text-sm text-slate-500 dark:text-slate-400">{t.help.mergeDesc}</div>
+                            </div>
+                            <div className="p-4 bg-slate-50 dark:bg-slate-700/30 rounded-xl border border-slate-100 dark:border-slate-700">
+                                <div className="font-bold text-slate-700 dark:text-slate-200 mb-1">{t.help.magnet}</div>
+                                <div className="text-sm text-slate-500 dark:text-slate-400">{t.help.magnetDesc}</div>
+                            </div>
+                            <div className="p-4 bg-slate-50 dark:bg-slate-700/30 rounded-xl border border-slate-100 dark:border-slate-700">
+                                <div className="font-bold text-slate-700 dark:text-slate-200 mb-1">{t.help.trash}</div>
+                                <div className="text-sm text-slate-500 dark:text-slate-400">{t.help.trashDesc}</div>
+                            </div>
+                        </div>
+                    </section>
 
-             <div className="w-px h-8 bg-slate-100 mx-1" />
-
-             {/* Group 4: View/IO */}
-             <button className="p-3 rounded-xl text-slate-400 hover:bg-slate-50 hover:text-slate-600 transition-all" onClick={handleResetView} title={t.toolbar.fitView}><Maximize size={20} /></button>
-             <button className={`p-3 rounded-xl transition-all text-slate-400 hover:bg-slate-50 hover:text-indigo-600`} onClick={() => setIsZenMode(true)} title={t.toolbar.zenMode}><Eye size={20} /></button>
-             <button className={`p-3 rounded-xl transition-all ${ioModalOpen ? 'bg-slate-100 text-teal-600' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`} onClick={handleOpenExport} title={t.toolbar.io}><Code size={20}/></button>
-
-             <div className="w-px h-8 bg-slate-100 mx-1" />
-
-             {/* Group 5: System */}
-             <button className={`p-3 rounded-xl transition-all ${isMuted ? 'text-slate-400' : 'text-slate-600 hover:bg-slate-50'}`} onClick={() => setIsMuted(!isMuted)} title={isMuted ? t.toolbar.muted : t.toolbar.soundOn}>{isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}</button>
-             <button className={`p-3 rounded-xl transition-all ${helpModalOpen ? 'bg-teal-50 text-teal-600' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`} onClick={() => setHelpModalOpen(true)} title={t.toolbar.help}><BookOpen size={20}/></button>
-             <button className="px-2 py-3 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-50 hover:text-teal-600 transition-all flex flex-col items-center justify-center gap-0.5" onClick={toggleLang} title={t.toolbar.lang}>
-                 <span>{lang === 'zh' ? '中' : 'En'}</span>
-             </button>
-          </div>
-      ) : (
-          /* ZEN MODE EXIT TRIGGER AREA */
-          <div className="fixed bottom-0 left-0 w-full h-32 z-50 flex justify-center items-end pb-8 group">
-              {/* Visual Hint for Zen Mode Recovery: A tiny, barely visible gradient at bottom */}
-              <div className="absolute bottom-0 left-0 w-full h-2 bg-gradient-to-t from-slate-200/50 to-transparent pointer-events-none opacity-50 group-hover:opacity-0 transition-opacity duration-500" />
-              
-              {/* Invisible hover area above, visible button on hover */}
-              <button 
-                className="px-6 py-2 rounded-full bg-white/80 backdrop-blur-md shadow-lg border border-slate-200 text-slate-500 hover:text-indigo-600 hover:bg-white transition-all duration-500 translate-y-20 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 flex items-center gap-2" 
-                onClick={() => setIsZenMode(false)}
-              >
-                  <EyeOff size={18} strokeWidth={1.5} />
-                  <span className="font-light text-sm tracking-widest">{t.toolbar.exitZen}</span>
-              </button>
-          </div>
+                    {/* Shortcuts Section */}
+                    <section>
+                        <h3 className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2"><Keyboard size={16}/> {t.help.shortcuts}</h3>
+                        <div className="flex flex-wrap gap-2">
+                            <span className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-xs font-mono text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-600">Ctrl+Z {t.help.undoKey}</span>
+                            <span className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-xs font-mono text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-600">Ctrl+Y {t.help.redoKey}</span>
+                            <span className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-xs font-mono text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-600">Enter {t.help.confirmKey}</span>
+                            <span className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-xs font-mono text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-600">Shift+Enter {t.help.newlineKey}</span>
+                            <span className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-xs font-mono text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-600">Tab {t.help.tabKey}</span>
+                            <span className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-xs font-mono text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-600">Ctrl+F {t.help.searchKey}</span>
+                        </div>
+                    </section>
+                </div>
+            </div>
+        </div>
       )}
       
       {selectionBox && (
@@ -2367,29 +2659,27 @@ const App: React.FC = () => {
       )}
 
       {/* Zero Latency Tooltip via Ref */}
-      {!isZenMode && (
-          <div 
-            ref={tooltipRef}
-            className={`fixed pointer-events-none z-50 px-3 py-1.5 rounded-full bg-white/90 backdrop-blur shadow-sm border border-slate-100 text-slate-600 text-xs font-medium flex items-center gap-2 will-change-transform ${!tooltipContent ? 'opacity-0' : 'opacity-100'}`}
-            style={{ top: 0, left: 0 }} // Position set by JS directly
-          >
-            {tooltipContent && (
-                <>
-                    {tooltipContent.type === 'create' && <Plus size={14} className="text-teal-500"/>}
-                    {tooltipContent.type === 'link' && <LinkIcon size={14} className="text-teal-500"/>}
-                    {tooltipContent.type === 'unlink' && <Unlink size={14} className="text-red-500"/>}
-                    {tooltipContent.type === 'split' && <Scissors size={14} className="text-amber-500"/>}
-                    {tooltipContent.type === 'merge' && <Merge size={14} className="text-amber-500"/>}
-                    {tooltipContent.text}
-                </>
-            )}
-          </div>
-      )}
+      <div 
+        ref={tooltipRef}
+        className={`fixed pointer-events-none z-50 px-3 py-1.5 rounded-full bg-white/90 dark:bg-slate-800/90 backdrop-blur shadow-sm border border-slate-100 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs font-medium flex items-center gap-2 will-change-transform ${!tooltipContent ? 'opacity-0' : 'opacity-100'}`}
+        style={{ top: 0, left: 0 }} // Position set by JS directly
+      >
+        {tooltipContent && (
+            <>
+                {tooltipContent.type === 'create' && <Plus size={14} className="text-teal-500"/>}
+                {tooltipContent.type === 'link' && <LinkIcon size={14} className="text-teal-500"/>}
+                {tooltipContent.type === 'unlink' && <Unlink size={14} className="text-red-500"/>}
+                {tooltipContent.type === 'split' && <Scissors size={14} className="text-amber-500"/>}
+                {tooltipContent.type === 'merge' && <Merge size={14} className="text-amber-500"/>}
+                {tooltipContent.text}
+            </>
+        )}
+      </div>
 
       {/* NEW TRASH DESIGN: Corner Gradient Region */}
       {(isDraggingNodes || dragRef.current.mode === 'move_nodes') && (
-        <div ref={trashRef} className={`fixed bottom-0 right-0 z-0 transition-all duration-300 pointer-events-none rounded-tl-full ${isOverTrash ? 'opacity-100' : 'opacity-30'}`} style={{ width: '400px', height: '400px', background: `radial-gradient(circle at 100% 100%, ${isOverTrash ? '#fecaca' : '#cbd5e1'} 0%, transparent 60%)` }}>
-            <div className={`absolute bottom-12 right-12 transition-all duration-300 flex flex-col items-center gap-2 ${isOverTrash ? 'scale-125 text-red-500' : 'scale-100 text-slate-400'}`}>
+        <div ref={trashRef} className={`fixed bottom-0 right-0 z-0 transition-all duration-300 pointer-events-none rounded-tl-full ${isOverTrash ? 'opacity-100' : 'opacity-30'}`} style={{ width: '400px', height: '400px', background: `radial-gradient(circle at 100% 100%, ${isOverTrash ? '#fecaca' : (isDarkMode ? '#334155' : '#cbd5e1')} 0%, transparent 60%)` }}>
+            <div className={`absolute bottom-12 right-12 transition-all duration-300 flex flex-col items-center gap-2 ${isOverTrash ? 'scale-125 text-red-500' : 'scale-100 text-slate-400 dark:text-slate-500'}`}>
               <Trash2 size={40} strokeWidth={isOverTrash ? 2 : 1.5} className={isOverTrash ? 'animate-bounce' : ''}/>
               <span className={`text-xs font-medium tracking-widest uppercase transition-opacity ${isOverTrash ? 'opacity-100' : 'opacity-0'}`}>{t.canvas.deleteZone}</span>
             </div>
@@ -2400,19 +2690,79 @@ const App: React.FC = () => {
       {ioModalOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center">
             <div className="absolute inset-0 bg-slate-900/30 backdrop-blur-sm" onClick={() => setIoModalOpen(false)} />
-            <div className="io-modal relative bg-white rounded-xl shadow-2xl border border-slate-200 w-[500px] animate-in flex flex-col overflow-hidden" style={{ transformOrigin: 'center' }}>
-                <div className="flex border-b border-slate-100">
-                    <button onClick={() => { setIoMode('export'); handleOpenExport(); }} className={`flex-1 py-4 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${ioMode === 'export' ? 'text-teal-600 bg-teal-50/50 border-b-2 border-teal-600' : 'text-slate-500 hover:bg-slate-50'}`}><Download size={16}/> {t.io.export}</button>
-                    <button onClick={() => { setIoMode('import'); setIoText(''); }} className={`flex-1 py-4 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${ioMode === 'import' ? 'text-teal-600 bg-teal-50/50 border-b-2 border-teal-600' : 'text-slate-500 hover:bg-slate-50'}`}><Upload size={16}/> {t.io.import}</button>
-                    <button onClick={() => setIoModalOpen(false)} className="absolute top-3 right-3 text-slate-400 hover:text-slate-600 p-1 hover:bg-slate-100 rounded-full"><X size={18}/></button>
+            <div className="io-modal relative bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 w-[550px] animate-in fade-in zoom-in-95 duration-200 flex flex-col overflow-hidden" style={{ transformOrigin: 'center' }}>
+                <div className="flex border-b border-slate-100 dark:border-slate-700">
+                    <button onClick={() => setIoMode('export')} className={`flex-1 py-4 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${ioMode === 'export' ? 'text-teal-600 bg-teal-50/50 dark:bg-teal-900/20 border-b-2 border-teal-600' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'}`}><Code size={16}/> {t.io.tabCode}</button>
+                    <button onClick={() => setIoMode('file')} className={`flex-1 py-4 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${ioMode === 'file' ? 'text-teal-600 bg-teal-50/50 dark:bg-teal-900/20 border-b-2 border-teal-600' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'}`}><FileJson size={16}/> {t.io.tabFile}</button>
+                    <button onClick={() => setIoMode('history')} className={`flex-1 py-4 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${ioMode === 'history' ? 'text-teal-600 bg-teal-50/50 dark:bg-teal-900/20 border-b-2 border-teal-600' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'}`}><History size={16}/> {t.io.tabHistory}</button>
+                    <button onClick={() => setIoModalOpen(false)} className="absolute top-3 right-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full"><X size={18}/></button>
                 </div>
-                <div className="p-5 flex-1 flex flex-col gap-4">
-                    {ioMode === 'export' && (<button onClick={handleExportImage} className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium text-sm transition-all flex items-center justify-center gap-2 mb-2"><ImageIcon size={16}/> {t.io.exportImg}</button>)}
-                    <div className="relative flex-1">
-                        <textarea value={ioText} onChange={(e) => setIoText(e.target.value)} readOnly={ioMode === 'export'} placeholder={ioMode === 'import' ? t.io.placeholderImport : ""} className="w-full h-64 bg-slate-50 border border-slate-200 rounded-lg p-4 font-mono text-xs text-slate-700 focus:ring-2 focus:ring-teal-500 outline-none resize-none" spellCheck={false}/>
-                        {ioMode === 'export' && (<button onClick={handleCopyCode} className="absolute top-3 right-3 p-2 bg-white border border-slate-200 rounded-md shadow-sm hover:bg-slate-50 text-slate-600 transition-all active:scale-95" title={t.io.copy}>{copySuccess ? <Check size={16} className="text-green-500"/> : <Copy size={16}/>}</button>)}
-                    </div>
-                    {ioMode === 'import' ? (<button onClick={handleImportMermaid} className="w-full py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium text-sm transition-all flex items-center justify-center gap-2 shadow-sm shadow-teal-200"><Upload size={16}/> {t.io.importBtn}</button>) : (<div className="text-xs text-slate-400 text-center">{t.io.importHint}</div>)}
+                
+                <div className="p-5 flex-1 flex flex-col gap-4 h-[350px]">
+                    {ioMode === 'export' && (
+                        <>
+                            <div className="flex gap-2">
+                                <button onClick={() => { setIoMode('export'); handleOpenExport(); }} className="flex-1 py-2 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-200 rounded-lg font-medium text-xs transition-all flex items-center justify-center gap-2">{t.io.export}</button>
+                                <button onClick={() => { setIoMode('import'); setIoText(''); }} className="flex-1 py-2 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-200 rounded-lg font-medium text-xs transition-all flex items-center justify-center gap-2">{t.io.import}</button>
+                                <button onClick={handleExportImage} className="flex-1 py-2 bg-teal-50 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 rounded-lg font-medium text-xs transition-all flex items-center justify-center gap-2"><ImageIcon size={14}/> {t.io.exportImg}</button>
+                            </div>
+                            <div className="relative flex-1">
+                                <textarea value={ioText} onChange={(e) => setIoText(e.target.value)} readOnly={false} placeholder={t.io.placeholderImport} className="w-full h-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-4 font-mono text-xs text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-teal-500 outline-none resize-none" spellCheck={false}/>
+                                <button onClick={handleCopyCode} className="absolute top-3 right-3 p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-all active:scale-95" title={t.io.copy}>{copySuccess ? <Check size={16} className="text-green-500"/> : <Copy size={16}/>}</button>
+                            </div>
+                            <button onClick={handleImportMermaid} className="w-full py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium text-sm transition-all flex items-center justify-center gap-2 shadow-sm shadow-teal-200"><Upload size={16}/> {t.io.importBtn}</button>
+                        </>
+                    )}
+
+                    {ioMode === 'file' && (
+                        <div className="flex flex-col gap-4 h-full">
+                            <button onClick={handleSaveFile} className="w-full py-6 bg-slate-50 dark:bg-slate-700/50 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl hover:border-teal-500 hover:bg-teal-50 dark:hover:bg-teal-900/20 hover:text-teal-600 transition-all flex flex-col items-center justify-center gap-2 group">
+                                <Save size={32} className="text-slate-400 dark:text-slate-500 group-hover:text-teal-500 mb-1"/>
+                                <span className="font-medium text-slate-700 dark:text-slate-200">{t.io.saveFile}</span>
+                            </button>
+                            
+                            <div className="relative w-full py-6 bg-slate-50 dark:bg-slate-700/50 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl hover:border-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 hover:text-indigo-600 transition-all flex flex-col items-center justify-center gap-2 group cursor-pointer">
+                                <FolderOpen size={32} className="text-slate-400 dark:text-slate-500 group-hover:text-indigo-500 mb-1"/>
+                                <span className="font-medium text-slate-700 dark:text-slate-200">{t.io.loadFile}</span>
+                                <input 
+                                    ref={fileInputRef}
+                                    type="file" 
+                                    accept=".json,.mb" 
+                                    onChange={handleLoadFile} 
+                                    className="absolute inset-0 opacity-0 cursor-pointer" 
+                                />
+                            </div>
+                        </div>
+                    )}
+                    
+                    {ioMode === 'history' && (
+                        <div className="flex flex-col h-full">
+                            <p className="text-xs text-slate-400 mb-3 flex items-center gap-2"><History size={14}/> {t.io.snapshotDesc}</p>
+                            <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+                                {snapshots.length === 0 ? (
+                                    <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-2">
+                                        <History size={32} className="opacity-20"/>
+                                        <span className="text-xs">{t.io.noSnaps}</span>
+                                    </div>
+                                ) : (
+                                    snapshots.map((snap, i) => (
+                                        <div key={i} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg border border-slate-100 dark:border-slate-700 hover:border-teal-500 transition-all group">
+                                            <div className="flex flex-col">
+                                                <span className="text-xs font-bold text-slate-700 dark:text-slate-200">{new Date(snap.timestamp).toLocaleTimeString()}</span>
+                                                <span className="text-[10px] text-slate-400">{new Date(snap.timestamp).toLocaleDateString()} • {snap.nodes.length} nodes</span>
+                                            </div>
+                                            <button 
+                                                onClick={() => restoreSnapshot(snap)}
+                                                className="px-3 py-1.5 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-medium rounded border border-slate-200 dark:border-slate-600 hover:bg-teal-500 hover:text-white hover:border-teal-500 transition-colors"
+                                            >
+                                                {t.io.restore}
+                                            </button>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
@@ -2423,18 +2773,18 @@ const App: React.FC = () => {
         <>
         <div className="fixed inset-0 z-40" onMouseDown={() => setContextMenu(null)} />
         <div 
-            className="absolute bg-white/80 backdrop-blur-xl shadow-2xl border border-white/40 ring-1 ring-black/5 rounded-2xl py-2 min-w-[200px] z-50 animate-in overflow-hidden origin-top-left" 
+            className="absolute bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl shadow-2xl border border-white/40 dark:border-slate-600 ring-1 ring-black/5 rounded-2xl py-2 min-w-[200px] z-50 animate-in fade-in zoom-in-95 duration-200 overflow-hidden origin-top-left" 
             style={{ left: contextMenu.x, top: contextMenu.y }} 
             onMouseDown={(e) => e.stopPropagation()}
         >
            {/* Color Palette */}
-           <div className="px-4 py-2 border-b border-slate-100/50">
+           <div className="px-4 py-2 border-b border-slate-100/50 dark:border-slate-700/50">
                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-2 flex items-center gap-1"><Palette size={12}/> {t.context.color}</span>
                <div className="flex gap-1.5 flex-wrap">
                    {/* Default White */}
                     <button 
                         onClick={() => contextMenu.nodeId && updateNodeColor(contextMenu.nodeId, '#fff')}
-                        className="w-5 h-5 rounded-full border border-slate-200 hover:scale-110 transition-transform bg-white"
+                        className="w-5 h-5 rounded-full border border-slate-200 hover:scale-110 transition-transform bg-white dark:bg-slate-700 dark:border-slate-600"
                         title={t.context.defaultWhite}
                     />
                    {COLORS.map(color => (
@@ -2448,35 +2798,35 @@ const App: React.FC = () => {
                </div>
            </div>
 
-           <div className="h-px bg-slate-200/50 mx-4 my-1"/>
+           <div className="h-px bg-slate-200/50 dark:bg-slate-700/50 mx-4 my-1"/>
 
-           <button className="group w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-white/50 flex items-center gap-3 transition-all active:scale-95" onClick={() => { if (contextMenu.nodeId) toggleShape(contextMenu.nodeId); }}>
-               <div className="p-1.5 rounded-lg bg-teal-50 text-teal-600 group-hover:bg-teal-100 transition-colors">
+           <button className="group w-full text-left px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-700/50 flex items-center gap-3 transition-all active:scale-95" onClick={() => { if (contextMenu.nodeId) toggleShape(contextMenu.nodeId); }}>
+               <div className="p-1.5 rounded-lg bg-teal-50 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 group-hover:bg-teal-100 dark:group-hover:bg-teal-800/30 transition-colors">
                    {nodes.find(n => n.id === contextMenu.nodeId)?.shape === 'circle' ? <Square size={16} /> : <Circle size={16}/>}
                </div>
                <span className="font-medium">{t.context.toggleShape}</span>
            </button>
            
-           <div className="h-px bg-slate-200/50 mx-4 my-1"/>
+           <div className="h-px bg-slate-200/50 dark:bg-slate-700/50 mx-4 my-1"/>
            
-           <button className="group w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-white/50 flex items-center gap-3 transition-all active:scale-95" onClick={() => { if (contextMenu.nodeId) { const targetIds = selectedNodeIds.has(contextMenu.nodeId) ? selectedNodeIds : new Set([contextMenu.nodeId]); const isAnyUnpinned = nodes.some(n => targetIds.has(n.id) && !n.pinned); syncSimulationToState(); saveHistory(); setNodes(prev => prev.map(n => targetIds.has(n.id) ? { ...n, pinned: isAnyUnpinned } : n)); setContextMenu(null); playSound('click', isMuted); } }}> 
-               <div className="p-1.5 rounded-lg bg-slate-100 text-slate-600 group-hover:bg-slate-200 transition-colors">
+           <button className="group w-full text-left px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-700/50 flex items-center gap-3 transition-all active:scale-95" onClick={() => { if (contextMenu.nodeId) { const targetIds = selectedNodeIds.has(contextMenu.nodeId) ? selectedNodeIds : new Set([contextMenu.nodeId]); const isAnyUnpinned = nodes.some(n => targetIds.has(n.id) && !n.pinned); syncSimulationToState(); saveHistory(); setNodes(prev => prev.map(n => targetIds.has(n.id) ? { ...n, pinned: isAnyUnpinned } : n)); setContextMenu(null); playSound('click', isMuted); } }}> 
+               <div className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 group-hover:bg-slate-200 dark:group-hover:bg-slate-600 transition-colors">
                  {(() => { const targetIds = (contextMenu.nodeId && selectedNodeIds.has(contextMenu.nodeId)) ? selectedNodeIds : new Set([contextMenu.nodeId!]); const isAnyUnpinned = nodes.some(n => targetIds.has(n.id) && !n.pinned); return isAnyUnpinned ? <Pin size={16}/> : <PinOff size={16}/>; })()} 
                </div>
                <span className="font-medium">{(() => { const targetIds = (contextMenu.nodeId && selectedNodeIds.has(contextMenu.nodeId)) ? selectedNodeIds : new Set([contextMenu.nodeId!]); const isAnyUnpinned = nodes.some(n => targetIds.has(n.id) && !n.pinned); return isAnyUnpinned ? t.context.pin : t.context.unpin; })()}</span>
            </button>
            
-           <button className="group w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-white/50 flex items-center gap-3 transition-all active:scale-95" onClick={() => { if (contextMenu.nodeId) { const targetIds = selectedNodeIds.has(contextMenu.nodeId) ? selectedNodeIds : new Set([contextMenu.nodeId]); saveHistory(); setEdges(prev => prev.filter(e => !targetIds.has(e.source) && !targetIds.has(e.target))); playSound('unlink', isMuted); } setContextMenu(null); }}>
-               <div className="p-1.5 rounded-lg bg-slate-100 text-slate-600 group-hover:bg-slate-200 transition-colors">
+           <button className="group w-full text-left px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-700/50 flex items-center gap-3 transition-all active:scale-95" onClick={() => { if (contextMenu.nodeId) { const targetIds = selectedNodeIds.has(contextMenu.nodeId) ? selectedNodeIds : new Set([contextMenu.nodeId]); saveHistory(); setEdges(prev => prev.filter(e => !targetIds.has(e.source) && !targetIds.has(e.target))); playSound('unlink', isMuted); } setContextMenu(null); }}>
+               <div className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 group-hover:bg-slate-200 dark:group-hover:bg-slate-600 transition-colors">
                    <Unlink size={16}/>
                </div>
                <span className="font-medium">{t.context.unlink}</span>
            </button>
            
-           <div className="h-px bg-slate-200/50 mx-4 my-1"/>
+           <div className="h-px bg-slate-200/50 dark:bg-slate-700/50 mx-4 my-1"/>
            
-           <button className="group w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50/50 flex items-center gap-3 transition-all active:scale-95" onClick={() => { if (contextMenu.nodeId) { const targetIds = selectedNodeIds.has(contextMenu.nodeId) ? selectedNodeIds : new Set([contextMenu.nodeId]); deleteNodes(targetIds); } setContextMenu(null); }}>
-               <div className="p-1.5 rounded-lg bg-red-100 text-red-500 group-hover:bg-red-200 transition-colors">
+           <button className="group w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50/50 dark:hover:bg-red-900/30 flex items-center gap-3 transition-all active:scale-95" onClick={() => { if (contextMenu.nodeId) { const targetIds = selectedNodeIds.has(contextMenu.nodeId) ? selectedNodeIds : new Set([contextMenu.nodeId]); deleteNodes(targetIds); } setContextMenu(null); }}>
+               <div className="p-1.5 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-500 group-hover:bg-red-200 dark:group-hover:bg-red-800/40 transition-colors">
                    <Trash2 size={16}/>
                </div>
                <span className="font-medium">{t.context.delete}</span>

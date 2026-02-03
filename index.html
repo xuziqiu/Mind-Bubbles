@@ -5,15 +5,27 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MindBubbles - 思绪气泡</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+        }
+    </script>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             overflow: hidden;
-            background-color: #f8fafc;
-            color: #334155;
-            /* Ultra Subtle Dot Pattern */
-            background-image: radial-gradient(#e2e8f0 1.5px, transparent 1.5px);
+            background-color: var(--bg-color, #f8fafc);
+            color: var(--text-color, #334155);
+            /* Ultra Subtle Dot Pattern - Dynamic based on vars */
+            background-image: radial-gradient(var(--dot-color, #e2e8f0) 1.5px, transparent 1.5px);
             background-size: 24px 24px;
+            transition: background-color 0.5s ease, color 0.5s ease;
+        }
+
+        body.dark {
+            --bg-color: #0f172a; /* Slate 900 */
+            --text-color: #f1f5f9; /* Slate 100 */
+            --dot-color: #1e293b; /* Slate 800 */
         }
         
         canvas { touch-action: none; }
@@ -23,10 +35,10 @@
             -webkit-user-select: none;
         }
         
-        /* Smooth Fade In (Node Creation) */
-        .animate-in {
+        /* Node Appearance Animation */
+        .node-appear {
             animation: springIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-            transform-origin: 0 0; /* Changed from center to 0 0 because group is already translated */
+            transform-origin: 0 0; /* Important: Nodes grow from their coordinate origin */
         }
         
         @keyframes springIn {
@@ -56,6 +68,30 @@
             30% { opacity: 0.9; transform: scale(1.1); stroke-width: 2px; }
             100% { opacity: 0; transform: scale(1.6); stroke-width: 0px; }
         }
+        
+        /* Custom Scrollbar for dark mode lists */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+        .dark ::-webkit-scrollbar-thumb {
+            background: #475569;
+        }
+        
+        /* Standard Fade In for UI Elements */
+        .fade-in-ui {
+            animation: fadeIn 0.2s ease-out forwards;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.98); }
+            to { opacity: 1; transform: scale(1); }
+        }
     </style>
 <script type="importmap">
 {
@@ -72,7 +108,7 @@
 </script>
 <link rel="stylesheet" href="/index.css">
 </head>
-<body>
+<body class="transition-colors duration-500">
     <div id="root"></div>
 <script type="module" src="/index.tsx"></script>
 </body>
