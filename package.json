@@ -11,8 +11,7 @@
   "dependencies": {
     "react": "^19.2.3",
     "lucide-react": "^0.562.0",
-    "react-dom": "^19.2.3",
-    "@google/genai": "^0.1.1"
+    "react-dom": "^19.2.3"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
