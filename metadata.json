@@ -1,0 +1,5 @@
+{
+  "name": "Mind Bubbles",
+  "description": "A lightweight interactive mind-mapping and bubble-diagram app that runs fully in the browser.",
+  "requestFramePermissions": []
+}
